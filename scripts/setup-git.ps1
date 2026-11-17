@@ -67,10 +67,16 @@ if ($Name -and $Email) {
     git config --local user.email $Email
     Write-Host "Identity set to $Name <$Email>" -ForegroundColor Green
 } elseif (-not $currentName -or -not $currentEmail -or $placeholder) {
-    $gh = Get-Command gh -ErrorAction SilentlyContinue
-    if ($gh) {
-        $login = (& gh api user --jq '.login' 2>$null)
-        $id = (& gh api user --jq '.id' 2>$null)
+    $ghPath = $null
+    $ghCommand = Get-Command gh -ErrorAction SilentlyContinue
+    if ($ghCommand) {
+        $ghPath = $ghCommand.Source
+    } elseif (Test-Path 'C:\Program Files\GitHub CLI\gh.exe') {
+        $ghPath = 'C:\Program Files\GitHub CLI\gh.exe'
+    }
+    if ($ghPath) {
+        $login = (& $ghPath api user --jq '.login' 2>$null)
+        $id = (& $ghPath api user --jq '.id' 2>$null)
         if ($login -and $id) {
             git config --local user.name $login.Trim()
             git config --local user.email "$($id.Trim())+$($login.Trim())@users.noreply.github.com"
@@ -86,4 +92,5 @@ if ($Name -and $Email) {
 
 Write-Host ""
 Write-Host "Git is ready for team work." -ForegroundColor Green
+Write-Host "Board access needs the project scope: gh auth refresh -s project" -ForegroundColor Gray
 Write-Host "Next: read docs\WORKFLOW.md. Short version: run scripts\sync.ps1 before you start." -ForegroundColor Gray
