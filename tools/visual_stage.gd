@@ -114,6 +114,29 @@ func _setup() -> void:
 			await get_tree().create_timer(0.3).timeout
 			anchored.global_position += anchored.get_up() * 4.0
 			await get_tree().create_timer(0.3).timeout
+		"rope_walk":
+			var walk_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			walk_rig.base_lift = 1.6
+			walk_rig.base_distance = 5.5
+			await get_tree().create_timer(0.4).timeout
+			var walker: Boy = game.get_node("Player") as Boy
+			walker.plant_stake()
+			await get_tree().create_timer(0.3).timeout
+			Input.action_press("move_right")
+			await get_tree().create_timer(1.2).timeout
+			Input.action_release("move_right")
+			await get_tree().create_timer(0.4).timeout
+		"rope_side":
+			var side_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			side_rig.base_lift = 2.2
+			side_rig.base_distance = 8.0
+			await get_tree().create_timer(0.4).timeout
+			var sider: Boy = game.get_node("Player") as Boy
+			sider.plant_stake()
+			await get_tree().create_timer(0.3).timeout
+			var side: Vector3 = side_rig.get_tangent_right(sider.get_up())
+			sider.global_position += side * 2.6 + sider.get_up() * 1.4
+			await get_tree().create_timer(0.35).timeout
 		"debris_approach":
 			var approach: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 			approach.force_spawn()

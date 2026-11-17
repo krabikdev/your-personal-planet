@@ -99,12 +99,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_player.swing_net()
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("plant") and _state == State.PLAYING:
-		_player.plant_stake()
-		get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed("unplant") and _state == State.PLAYING:
-		_player.remove_stake()
+	if event.is_action_pressed("stake") and _state == State.PLAYING:
+		if _rope.is_planted():
+			_player.remove_stake()
+		else:
+			_player.plant_stake()
 		get_viewport().set_input_as_handled()
 		return
 	if (
