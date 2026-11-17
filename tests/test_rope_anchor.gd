@@ -10,16 +10,18 @@ func _make_game() -> Game:
 	return game
 
 
-func test_stake_action_is_mapped_to_e() -> void:
-	assert_true(InputMap.has_action("stake"), "E should be mapped to the stake action")
-	var found_e: bool = false
+func test_stake_action_is_mapped_to_the_right_mouse_button() -> void:
+	assert_true(InputMap.has_action("stake"), "the stake should have its own action")
+	var found_click: bool = false
 	for event: InputEvent in InputMap.action_get_events("stake"):
-		if event is InputEventKey and (event as InputEventKey).physical_keycode == KEY_E:
-			found_e = true
-	assert_true(found_e, "the stake should be planted with E")
+		if event is InputEventMouseButton:
+			var button := event as InputEventMouseButton
+			if button.button_index == MOUSE_BUTTON_RIGHT:
+				found_click = true
+	assert_true(found_click, "the stake should be toggled with the right mouse button")
 
 
-func test_pressing_e_toggles_the_stake() -> void:
+func test_pressing_the_right_mouse_button_toggles_the_stake() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(3)
 	var player: Boy = game.get_node("Player") as Boy
@@ -28,10 +30,10 @@ func test_pressing_e_toggles_the_stake() -> void:
 	press.action = "stake"
 	press.pressed = true
 	game._unhandled_input(press)
-	assert_true(player.rope.is_planted(), "the first E should plant the stake")
+	assert_true(player.rope.is_planted(), "the first right click should plant the stake")
 
 	game._unhandled_input(press)
-	assert_false(player.rope.is_planted(), "the second E should pull the stake out")
+	assert_false(player.rope.is_planted(), "the second right click should pull the stake out")
 
 
 func test_the_boy_hammers_a_stake_into_the_ground() -> void:

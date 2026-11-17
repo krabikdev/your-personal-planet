@@ -11,7 +11,7 @@ const ACTIONS: Dictionary[String, Array] = {
 	"move_right": [KEY_D, KEY_RIGHT],
 	"jump": [KEY_SPACE],
 	"interact": [],
-	"stake": [KEY_E],
+	"stake": [],
 	"inventory": [KEY_I],
 	"pause": [KEY_ESCAPE],
 }
@@ -30,6 +30,11 @@ func _initialize() -> void:
 			click.button_index = MOUSE_BUTTON_LEFT
 			click.device = -1
 			events.append(click)
+		if action == "stake":
+			var right_click := InputEventMouseButton.new()
+			right_click.button_index = MOUSE_BUTTON_RIGHT
+			right_click.device = -1
+			events.append(right_click)
 		ProjectSettings.set_setting("input/%s" % action, {"deadzone": 0.2, "events": events})
 	ProjectSettings.set_setting("gui/theme/custom", "res://ui/theme/app_theme.tres")
 	ProjectSettings.set_setting("rendering/anti_aliasing/quality/msaa_3d", 2)
