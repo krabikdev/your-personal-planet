@@ -85,6 +85,25 @@ func _on_score_changed(new_score: int) -> void:
   typed signal, not `get_node("../../..")`.
 - Keep each scene focused on one responsibility; one feature per commit.
 
+## Every change: sync first, ship last — mandatory
+
+This loop is not optional and applies to **every** change, in every session, on both machines:
+
+1. **Before you read or edit a project file, sync.** On Windows
+   `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sync.ps1`; on Linux/macOS
+   `./scripts/sync.sh`. Never start from a stale `master`. If sync refuses because of unsaved
+   work, ship that work (or stash it) first, then sync again.
+2. Make the change. Keep it small; add or update the GUT test that proves it.
+3. Run the check pipeline for your platform and fix every failure.
+4. **Ship.** `scripts\agent-ship.ps1 -Message "feat: ..."` or
+   `./scripts/agent-ship.sh "feat: ..."`. It re-runs the checks, commits, rebases on the newest
+   `master`, pushes, opens the pull request and squash-merges it.
+5. Sync again if you continue working, so the next step starts from merged code.
+
+Do not leave a change uncommitted, unmerged, or only on your machine. If a task is too large for
+one green step, ship each step separately. A task is not done until `git status` is clean and
+`master` on GitHub contains the work.
+
 ## Verification — mandatory
 
 After **every** change, run the full pipeline and fix every error before continuing:
@@ -181,5 +200,6 @@ git switch master && git pull --ff-only
 
 - One feature per commit, imperative subject (`feat: add player dash`).
 - **Always push after committing.** Every commit goes to `origin` on GitHub before the task is
-  reported as done — never leave commits sitting locally.
+  reported as done — never leave commits sitting locally. The normal way to do this is
+  `agent-ship`, which commits, pushes and merges in one step.
 - Never commit `.godot/`, `export_presets.cfg`, `.env`, or keystores.
