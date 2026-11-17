@@ -1,0 +1,80 @@
+extends GutTest
+
+const GAME_PATH: String = "res://scenes/game.tscn"
+
+
+func _make_game() -> Game:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	return game
+
+
+func test_plant_action_is_mapped_to_q() -> void:
+	assert_true(InputMap.has_action("plant"), "Q should be mapped to the plant action")
+
+
+func test_the_boy_hammers_a_stake_into_the_ground() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	assert_not_null(player.rope, "the game should hand the boy a rope anchor")
+
+	player.plant_stake()
+	assert_true(player.rope.is_planted(), "one press should drive the stake in")
+	assert_almost_eq(
+		player.rope.get_anchor_position().distance_to(planet.get_center()),
+		planet.radius,
+		0.01,
+		"the stake should sit on the surface"
+	)
+	assert_almost_eq(
+		player.rope.get_max_length(),
+		PlanetProfile.death_altitude(planet.radius) * 0.95,
+		0.01,
+		"the rope should reach 95% of the freezing distance"
+	)
+
+
+func test_a_taut_rope_stops_the_boy_and_throws_him_back() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	var rope: RopeAnchor = player.rope
+	var limit: float = rope.get_max_length()
+	var up: Vector3 = player.get_up()
+
+	# Hover just past the limit, still below the freezing altitude.
+	player.global_position = planet.get_center() + up * (planet.radius + limit + 0.5)
+	player.velocity = up * 6.0
+	player._apply_rope_limit()
+
+	var distance: float = player.global_position.distance_to(rope.get_anchor_position())
+	assert_almost_eq(
+		distance, limit, 0.01, "the rope should cap the distance exactly at its length"
+	)
+	assert_lt(player.velocity.dot(up), 0.0, "flying into the limit should bounce the boy back")
+
+
+func test_holding_space_reels_the_boy_back_to_the_surface() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 1.6)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(2)
+
+	Input.action_press("jump")
+	await get_tree().create_timer(2.8).timeout
+	Input.action_release("jump")
+
+	assert_lt(player.get_altitude(), 0.6, "holding Space should crawl the boy back down the rope")

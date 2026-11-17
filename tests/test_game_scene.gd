@@ -120,8 +120,41 @@ func test_debris_countdown_is_10_to_30_seconds() -> void:
 	assert_lte(countdown, 30.0, "the countdown should start within the new range")
 
 
+func test_debris_appears_far_from_the_planet() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
+	var planet: Planet = game.get_node("Planet") as Planet
+	debris.force_spawn()
+	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.2).timeout
+
+	var node: Node3D = debris.get_node_or_null("Debris") as Node3D
+	assert_not_null(node, "the flyby should have created its debris")
+	var distance: float = node.global_position.distance_to(planet.get_center())
+	assert_gt(
+		distance,
+		planet.radius + 3.0,
+		"the junk should fade in from far away instead of popping in nearby"
+	)
+
+
 func test_run_action_exists() -> void:
 	assert_true(InputMap.has_action("run"), "the run action should be mapped to Shift")
+
+
+func test_hud_planet_size_is_just_a_value() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var hud: GameHUD = game.get_node("GameHud") as GameHUD
+	var label: Label = hud.get_node("%DiameterLabel") as Label
+	assert_false(label.text.contains("хлопчик"), "the planet size should not be measured in boys")
+	assert_string_contains(label.text, "10.0")
 
 
 func test_run_increases_the_boy_speed() -> void:

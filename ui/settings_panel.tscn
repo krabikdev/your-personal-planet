@@ -131,7 +131,7 @@ layout_mode = 2
 layout_mode = 2
 theme_type_variation = &"SmallLabel"
 text = "WASD — рух     ·     Shift — біг     ·     Пробіл — стрибок
-E — замахнутися сачком     ·     I — сумка
+Q — забити кілок з канатом     ·     E — замахнутися сачком     ·     I — сумка
 Перетягни мишкою по світу — поворот камери"
 autowrap_mode = 3
 

@@ -9,6 +9,10 @@ signal cold_changed(amount: float)
 signal jumped
 signal landed(strength: float)
 
+const ROPE_BOUNCE: float = 0.55
+const ROPE_BRAKE_BOUNCE: float = 0.45
+const ROPE_CRAWL_SPEED: float = 1.35
+
 @export var walk_speed: float = 3.3
 @export var run_multiplier: float = 1.8
 @export var ground_acceleration: float = 26.0
@@ -21,6 +25,7 @@ signal landed(strength: float)
 
 var planet: Planet
 var camera_rig: Node3D
+var rope: RopeAnchor
 var locked: bool = false
 var smearing: bool = false
 var dead: bool = false
@@ -34,6 +39,9 @@ var _step_distance: float = 0.0
 var _cold: float = 0.0
 var _step_toggle: bool = false
 var _running: bool = false
+var _rope_crawl: bool = false
+var _rope_brake_latch: bool = false
+var _rope_recoil: float = 0.0
 var _hint_time: float = 0.0
 var _streams: Dictionary[String, AudioStream] = {}
 
@@ -74,6 +82,23 @@ func set_planet(value: Planet) -> void:
 
 func set_camera_rig(value: Node3D) -> void:
 	camera_rig = value
+
+
+func set_rope(value: RopeAnchor) -> void:
+	rope = value
+
+
+func plant_stake() -> void:
+	if dead or locked or planet == null or rope == null:
+		return
+	if get_altitude() > 0.6:
+		return
+	_model.play_hammer_swing()
+	_play("land", -6.0, 0.05)
+	var up: Vector3 = get_up()
+	var right: Vector3 = _facing.cross(up).normalized()
+	var spot: Vector3 = _facing * 0.75 + right * 0.55
+	rope.plant(global_position + spot.normalized() * 0.95)
 
 
 func snap_to_surface() -> void:
@@ -186,11 +211,14 @@ func _physics_process(delta: float) -> void:
 
 	var grounded_before: bool = is_on_floor()
 	if not locked:
-		_apply_gravity(up, delta)
-		if not grounded_before:
-			_fall_speed = maxf(_fall_speed, -velocity.dot(up))
-		_handle_jump(up, grounded_before)
-		_handle_movement(up, delta)
+		if _rope_air_active():
+			_handle_rope_air(up, delta)
+		else:
+			_apply_gravity(up, delta)
+			if not grounded_before:
+				_fall_speed = maxf(_fall_speed, -velocity.dot(up))
+			_handle_jump(up, grounded_before)
+			_handle_movement(up, delta)
 	else:
 		var tangent: Vector3 = velocity - up * velocity.dot(up)
 		tangent = tangent.move_toward(Vector3.ZERO, ground_acceleration * delta)
@@ -205,6 +233,7 @@ func _physics_process(delta: float) -> void:
 	var after_up: Vector3 = get_up()
 	_update_basis(after_up)
 	_keep_above_surface(after_up)
+	_apply_rope_limit()
 
 	var grounded_now: bool = is_on_floor()
 	if grounded_now and not _was_grounded:
@@ -222,6 +251,60 @@ func _physics_process(delta: float) -> void:
 	_update_footsteps(delta, grounded_now)
 	_update_cold(delta)
 	_model.set_motion(get_speed_ratio(), grounded_now, _running)
+
+
+func _rope_air_active() -> bool:
+	if rope == null or not rope.is_planted():
+		return false
+	if is_on_floor():
+		_rope_crawl = false
+		return false
+	if not Input.is_action_pressed("jump"):
+		_rope_crawl = false
+		_rope_brake_latch = false
+		return false
+	if _rope_crawl:
+		return true
+	if _rope_brake_latch:
+		return false
+	# A fresh press in the air: stop dead and recoil, then start reeling in.
+	_rope_crawl = true
+	var speed: float = velocity.length()
+	velocity = -velocity * ROPE_BRAKE_BOUNCE
+	_rope_recoil = clampf(0.14 + speed * 0.02, 0.14, 0.4)
+	if speed > 0.6:
+		rope.notify_snap(speed)
+	return true
+
+
+func _handle_rope_air(up: Vector3, delta: float) -> void:
+	if _rope_recoil > 0.0:
+		_rope_recoil -= delta
+		_apply_gravity(up, delta)
+		return
+	if rope == null:
+		return
+	var to_stake: Vector3 = rope.get_anchor_position() - global_position
+	if to_stake.length_squared() > 0.0001:
+		velocity = to_stake.normalized() * ROPE_CRAWL_SPEED
+
+
+func _apply_rope_limit() -> void:
+	if rope == null or not rope.is_planted():
+		return
+	var anchor: Vector3 = rope.get_anchor_position()
+	var offset: Vector3 = global_position - anchor
+	var distance: float = offset.length()
+	var limit: float = rope.get_max_length()
+	if limit <= 0.1 or distance <= limit or distance < 0.001:
+		return
+	var direction: Vector3 = offset / distance
+	global_position = anchor + direction * limit
+	var outward_speed: float = velocity.dot(direction)
+	if outward_speed > 0.0:
+		velocity -= direction * outward_speed * (1.0 + ROPE_BOUNCE)
+		if outward_speed > 0.8:
+			rope.notify_snap(outward_speed)
 
 
 func _apply_gravity(up: Vector3, delta: float) -> void:
@@ -248,6 +331,9 @@ func _handle_jump(up: Vector3, grounded: bool) -> void:
 		_jump_buffer = 0.0
 		_coyote = 0.0
 		_fall_speed = 0.0
+		if rope != null and rope.is_planted():
+			# Keep the launching press from instantly reeling the rope in.
+			_rope_brake_latch = true
 		_play("jump", -4.0, 0.08)
 		jumped.emit()
 
@@ -313,15 +399,19 @@ func _update_footsteps(delta: float, grounded: bool) -> void:
 func _update_cold(delta: float) -> void:
 	if locked:
 		return
-	var altitude: float = get_altitude()
-	var threshold: float = planet.cold_altitude()
 	var previous: float = _cold
-	if altitude > threshold:
-		_cold = minf(1.0, _cold + delta / cold_seconds)
-	elif altitude < threshold * 0.55:
-		_cold = maxf(0.0, _cold - delta * 0.85)
-	if altitude > PlanetProfile.death_altitude(planet.radius):
-		_cold = 1.0
+	if _rope_crawl:
+		# Reeling himself along the rope keeps him warm enough to make it home.
+		_cold = maxf(0.0, _cold - delta * 0.35)
+	else:
+		var altitude: float = get_altitude()
+		var threshold: float = planet.cold_altitude()
+		if altitude > threshold:
+			_cold = minf(1.0, _cold + delta / cold_seconds)
+		elif altitude < threshold * 0.55:
+			_cold = maxf(0.0, _cold - delta * 0.85)
+		if altitude > PlanetProfile.death_altitude(planet.radius):
+			_cold = 1.0
 	if not is_equal_approx(previous, _cold):
 		_model.set_cold(_cold)
 		cold_changed.emit(_cold)

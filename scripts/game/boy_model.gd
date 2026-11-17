@@ -28,6 +28,7 @@ const LANTERN_GLOW := Color("ffcf8a")
 const NET_SWING_DURATION: float = 0.72
 const NET_ACTIVE_START: float = 0.24
 const NET_ACTIVE_END: float = 0.52
+const HAMMER_DURATION: float = 0.5
 
 var _root: Node3D
 var _hips: Node3D
@@ -45,6 +46,7 @@ var _lantern: Node3D
 var _lantern_light: OmniLight3D
 var _net_pivot: Node3D
 var _net_tip: Node3D
+var _hammer: Node3D
 var _materials: Array[StandardMaterial3D] = []
 var _base_colors: Array[Color] = []
 var _walk_blend: float = 0.0
@@ -58,6 +60,8 @@ var _sitting: bool = false
 var _net_swinging: bool = false
 var _net_swing_time: float = 0.0
 var _net_active: bool = false
+var _hammer_swinging: bool = false
+var _hammer_time: float = 0.0
 var _smear_time: float = 0.0
 var _phase: float = 0.0
 var _idle_time: float = 0.0
@@ -92,6 +96,13 @@ func _process(delta: float) -> void:
 			_net_swinging = false
 			_net_swing_time = 0.0
 			_net_active = false
+	if _hammer_swinging:
+		_hammer_time += delta
+		if _hammer_time >= HAMMER_DURATION:
+			_hammer_swinging = false
+			_hammer_time = 0.0
+			if _hammer != null:
+				_hammer.visible = false
 	_animate()
 	if _smear_dust != null:
 		_smear_dust.emitting = _sit_blend > 0.55
@@ -109,6 +120,14 @@ func play_net_swing() -> void:
 	_net_swinging = true
 	_net_swing_time = 0.0
 	_net_active = false
+
+
+func play_hammer_swing() -> void:
+	if _hammer == null:
+		return
+	_hammer_swinging = true
+	_hammer_time = 0.0
+	_hammer.visible = true
 
 
 func is_net_active() -> bool:
@@ -221,6 +240,18 @@ func _animate() -> void:
 	if _net_pivot != null:
 		_net_pivot.rotation.x = -_arm_r.rotation.x - 0.12 * net_arm
 		_net_pivot.rotation.z = -_arm_r.rotation.z + 0.08 * net_arm
+	if _hammer_swinging:
+		var hammer_angle: float
+		if _hammer_time < 0.12:
+			hammer_angle = lerpf(0.0, -2.35, _hammer_time / 0.12)
+		elif _hammer_time < 0.24:
+			hammer_angle = lerpf(-2.35, 0.65, (_hammer_time - 0.12) / 0.12)
+		else:
+			hammer_angle = lerpf(
+				0.65, 0.0, clampf((_hammer_time - 0.24) / (HAMMER_DURATION - 0.24), 0.0, 1.0)
+			)
+		_arm_l.rotation.x = hammer_angle
+		_arm_l.rotation.z = -0.12
 
 	_hips.position.y = 0.40 - 0.160 * _sit_blend + bob
 	_torso.rotation.x = lerpf(-0.075 * _walk_blend, -0.48, _sit_blend) - 0.12 * _run_blend
@@ -461,9 +492,15 @@ func _build_arm(parent: Node3D, left: bool) -> void:
 	_add_mesh(arm, thumb, mitten_material, Vector3(0.042 * inward, -0.292, -0.012))
 	if left:
 		_arm_l = arm
+		_build_hammer(arm)
 	else:
 		_arm_r = arm
 		_build_net(arm)
+
+
+func _build_hammer(arm: Node3D) -> void:
+	_hammer = HammerProp.new()
+	arm.add_child(_hammer)
 
 
 func _build_net(arm: Node3D) -> void:

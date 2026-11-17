@@ -8,7 +8,8 @@ const BASE_RADIUS: float = 5.0
 const BASE_GRAVITY: float = 3.0
 const GRAVITY_EXPONENT: float = 1.6
 const JUMP_BASE_SPEED: float = 14.0
-const JUMP_FALLOFF: float = 0.45
+const JUMP_MIN_HEIGHT: float = 1.0
+const JUMP_END_RADIUS: float = 1000.0
 const GROWTH_GAIN: float = 0.775
 const GROWTH_FALLOFF: float = 0.9
 const MIN_GROWTH: float = 0.18
@@ -31,12 +32,20 @@ static func escape_velocity(radius: float) -> float:
 
 
 static func jump_speed(radius: float) -> float:
-	var r: float = maxf(radius, 1.0)
-	return JUMP_BASE_SPEED * pow(BASE_RADIUS / r, JUMP_FALLOFF)
+	return sqrt(2.0 * surface_gravity(radius) * jump_height(radius))
+
+
+static func base_jump_height() -> float:
+	return pow(JUMP_BASE_SPEED, 2.0) / (2.0 * BASE_GRAVITY)
 
 
 static func jump_height(radius: float) -> float:
-	return pow(jump_speed(radius), 2.0) / (2.0 * surface_gravity(radius))
+	# The jump fades far more gently than gravity grows: a heavy planet still
+	# lets the boy hop, and the curve settles on one boy height at JUMP_END_RADIUS.
+	var base: float = base_jump_height()
+	var r: float = clampf(radius, BASE_RADIUS, JUMP_END_RADIUS)
+	var progress: float = log(r / BASE_RADIUS) / log(JUMP_END_RADIUS / BASE_RADIUS)
+	return base * pow(JUMP_MIN_HEIGHT / base, progress)
 
 
 static func growth_for_stone(radius: float, size_factor: float) -> float:
