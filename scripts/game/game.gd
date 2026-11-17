@@ -77,7 +77,6 @@ func _ready() -> void:
 
 	_update_stats()
 	_hud.set_inventory_count(0)
-	_hud.show_intro()
 	_hud.fade_controls()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -218,6 +217,7 @@ func _start_apply(stone: StoneItem) -> void:
 	_player.end_smearing_pose()
 	_camera_rig.set_focus(1.0)
 	_camera_rig.add_shake(0.22)
+	_player.burst_dust()
 	AudioDirector.play_sfx("grow", 0.0, 1.0)
 	_planet.grow(stone.size_factor)
 
