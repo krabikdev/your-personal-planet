@@ -7,13 +7,14 @@ extends Node3D
 ## instead of letting him drift off.
 
 signal planted
+signal removed
 signal snapped(force: float)
 
 const ROPE_FRACTION: float = 0.95
 const STAKE_HEIGHT: float = 0.5
 const STAKE_SINK: float = 0.06
 const ROPE_RADIUS: float = 0.01
-const HAND_HEIGHT: float = 0.55
+const FOOT_HEIGHT: float = 0.03
 const WOOD := Color("7b5c45")
 const WOOD_DARK := Color("5c4433")
 const ROPE_COLOR := Color("cdb38d")
@@ -60,6 +61,19 @@ func plant(surface_position: Vector3) -> void:
 	_build_stake(up)
 	_build_rope()
 	planted.emit()
+
+
+func clear() -> void:
+	if not _planted:
+		return
+	_planted = false
+	if _stake != null:
+		_stake.queue_free()
+		_stake = null
+	if _rope != null:
+		_rope.queue_free()
+		_rope = null
+	removed.emit()
 
 
 func notify_snap(force: float) -> void:
@@ -156,7 +170,7 @@ func _update_rope() -> void:
 	if up.length_squared() < 0.1:
 		up = Vector3.UP
 	var from: Vector3 = _anchor + up * (STAKE_HEIGHT - STAKE_SINK - 0.04)
-	var to: Vector3 = player.global_position + player.get_up() * HAND_HEIGHT
+	var to: Vector3 = player.global_position + player.get_up() * FOOT_HEIGHT
 	var offset: Vector3 = to - from
 	var length: float = offset.length()
 	_rope.visible = length > 0.03

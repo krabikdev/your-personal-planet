@@ -11,6 +11,8 @@ const ACTIONS: Dictionary[String, Array] = {
 	"move_right": [KEY_D, KEY_RIGHT],
 	"jump": [KEY_SPACE],
 	"interact": [],
+	"plant": [KEY_Q],
+	"unplant": [KEY_E],
 	"inventory": [KEY_I],
 	"pause": [KEY_ESCAPE],
 }

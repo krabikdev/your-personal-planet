@@ -186,14 +186,6 @@ func play_land_dust() -> void:
 	_land_dust.emitting = true
 
 
-func play_catch_pose() -> void:
-	var tween := create_tween()
-	tween.tween_property(_arm_l, "rotation", Vector3(-2.3, 0.0, 0.5), 0.18)
-	tween.parallel().tween_property(_arm_r, "rotation", Vector3(-2.3, 0.0, -0.5), 0.18)
-	tween.tween_property(_arm_l, "rotation", Vector3.ZERO, 0.5)
-	tween.parallel().tween_property(_arm_r, "rotation", Vector3.ZERO, 0.5)
-
-
 func _animate() -> void:
 	var swing: float = sin(_phase) * 0.72 * _walk_blend
 	var arm_swing: float = -sin(_phase) * 0.58 * _walk_blend
