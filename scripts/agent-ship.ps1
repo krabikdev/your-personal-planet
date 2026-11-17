@@ -185,7 +185,9 @@ if ($LASTEXITCODE -ne 0) {
     Stop-With "Merged, but could not switch back to master. Ask your agent to fix it."
 }
 git pull --ff-only
-git branch -D $branch 2>$null | Out-Null
+if (git branch --list $branch) {
+    git branch -D $branch | Out-Null
+}
 
 Write-Step "Done."
 Write-Host $Message -ForegroundColor Green
