@@ -116,3 +116,55 @@ func test_removing_the_stake_removes_the_rope() -> void:
 
 	assert_false(rope.is_planted(), "the stake should be gone")
 	assert_eq(rope.get_child_count(), 0, "the stake and the rope should be freed together")
+
+
+func test_the_stake_has_its_own_soil_sounds() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	assert_true(player._streams.has("stake_plant"), "planting should have a soil-dig sound")
+	assert_true(player._streams.has("stake_pull"), "removing should have a pull-out sound")
+
+	player.plant_stake()
+	await get_tree().create_timer(0.25).timeout
+	assert_eq(
+		player._audio.stream.resource_path,
+		"res://assets/audio/stake_plant.wav",
+		"planting should play the shovel-in-soil sound"
+	)
+
+	player.remove_stake()
+	await get_tree().process_frame
+	assert_eq(
+		player._audio.stream.resource_path,
+		"res://assets/audio/stake_pull.wav",
+		"removing should play the stake-out-of-soil sound"
+	)
+
+
+func test_a_tethered_boy_flies_sideways_faster_than_he_walks() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 2.0)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(2)
+
+	Input.action_press("move_right")
+	await wait_physics_frames(24)
+	var after_up: Vector3 = player.get_up()
+	var tangent: Vector3 = player.velocity - after_up * player.velocity.dot(after_up)
+	Input.action_release("move_right")
+
+	assert_gt(
+		tangent.length(),
+		player.walk_speed * 1.2,
+		"a boy hanging from the stake should glide sideways faster than he walks"
+	)
