@@ -64,4 +64,5 @@ fi
 
 echo
 echo "Git is ready for team work."
+echo "Board access needs: gh auth refresh -s project"
 echo "Next: read docs/WORKFLOW.md. Short version: run ./scripts/sync.sh before you start."

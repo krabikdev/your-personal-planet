@@ -26,6 +26,7 @@ The only thing you may run yourself is `sync` (below), and even that is optional
 ```powershell
 winget install --id GitHub.cli --exact
 gh auth login
+gh auth refresh -s project
 winget install --id GodotEngine.GodotEngine
 git clone https://github.com/krabikdev/your-personal-planet.git
 cd your-personal-planet
@@ -37,11 +38,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\setup-git.ps1
 ```bash
 sudo apt install gh          # or: https://cli.github.com
 gh auth login
+gh auth refresh -s project
 # install Godot 4.7 and put it on PATH as `godot`, or export GODOT=/path/to/godot
 git clone https://github.com/krabikdev/your-personal-planet.git
 cd your-personal-planet
 ./scripts/setup-git.sh
 ```
+
+`gh auth refresh -s project` is what lets the board commands work. Without it, every
+`gh project ...` call stops with "missing required scopes".
 
 Then open `project.godot` in Godot once so the project is imported, and install the check tools:
 `uv tool install gdtoolkit` (or `pipx install gdtoolkit`).
