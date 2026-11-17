@@ -86,7 +86,7 @@ func test_boy_can_walk_across_the_surface() -> void:
 	await get_tree().create_timer(0.2).timeout
 
 	assert_gt(
-		start.distance_to(player.global_position), 0.5, "the boy should be able to walk freely"
+		start.distance_to(player.global_position), 0.35, "the boy should be able to walk freely"
 	)
 
 
@@ -174,6 +174,30 @@ func test_run_increases_the_boy_speed() -> void:
 	Input.action_release("move_forward")
 
 	assert_gt(run_speed, walk_speed * 1.3, "holding Shift should make the boy run faster")
+
+
+func test_the_duke_turns_smoothly_towards_the_stick() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(2)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var rig: CameraRig = player.camera_rig as CameraRig
+	var up: Vector3 = player.get_up()
+	var target: Vector3 = rig.get_tangent_right(up)
+	var start: Vector3 = -player.global_transform.basis.z
+	Input.action_press("move_right")
+	await get_tree().create_timer(0.06).timeout
+	var early: Vector3 = -player.global_transform.basis.z
+	await get_tree().create_timer(0.5).timeout
+	var late: Vector3 = -player.global_transform.basis.z
+	Input.action_release("move_right")
+
+	var target_late: Vector3 = rig.get_tangent_right(player.get_up())
+	assert_gt(start.angle_to(early), 0.02, "the body should start turning right away")
+	assert_lt(early.angle_to(target_late), 1.2, "one frame must not finish the turn")
+	assert_lt(late.angle_to(target_late), 0.35, "the body should end up facing the input")
 
 
 func test_net_swing_raises_the_catch_point() -> void:

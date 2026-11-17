@@ -1,4 +1,4 @@
-class_name Boy
+class_name Boy  # gdlint:ignore=max-public-methods
 extends CharacterBody3D
 
 ## Spherical-gravity character controller. The boy walks on the outside of the
@@ -15,12 +15,12 @@ const ROPE_CRAWL_SPEED: float = 1.35
 
 @export var walk_speed: float = 3.3
 @export var run_multiplier: float = 1.8
+@export var turn_speed: float = 9.0
 @export var ground_acceleration: float = 26.0
 @export var air_acceleration: float = 8.0
 @export var coyote_time: float = 0.12
 @export var jump_buffer_time: float = 0.14
 @export var cold_seconds: float = 4.0
-@export var footstep_distance: float = 1.45
 @export var catch_hint_height: float = 1.75
 
 var planet: Planet
@@ -35,9 +35,7 @@ var _coyote: float = 0.0
 var _jump_buffer: float = 0.0
 var _was_grounded: bool = true
 var _fall_speed: float = 0.0
-var _step_distance: float = 0.0
 var _cold: float = 0.0
-var _step_toggle: bool = false
 var _running: bool = false
 var _rope_crawl: bool = false
 var _rope_brake_latch: bool = false
@@ -45,7 +43,7 @@ var _rope_recoil: float = 0.0
 var _hint_time: float = 0.0
 var _streams: Dictionary[String, AudioStream] = {}
 
-@onready var _model: BoyModel = %Visual
+@onready var _model: PrinceModel = %Visual
 @onready var _audio: AudioStreamPlayer3D = %Audio
 @onready var _catch_hint: Node3D = %CatchHint
 
@@ -54,6 +52,8 @@ func _ready() -> void:
 	floor_snap_length = 0.55
 	floor_stop_on_slope = true
 	floor_max_angle = deg_to_rad(80.0)
+	jumped.connect(_model.play_jump)
+	_model.footstepped.connect(_on_footstepped)
 	for key: String in ["footstep_1", "footstep_2", "jump", "land", "whoosh"]:
 		var stream: AudioStream = load("res://assets/audio/%s.wav" % key) as AudioStream
 		if stream != null:
@@ -151,18 +151,18 @@ func start_smearing() -> void:
 	smearing = true
 	velocity = Vector3.ZERO
 	set_catch_hint(false)
-	_model.set_sitting(true)
+	_model.set_smearing(true)
 
 
 func finish_smearing() -> void:
 	smearing = false
 	locked = false
-	_model.set_sitting(false)
+	_model.set_smearing(false)
 
 
 func end_smearing_pose() -> void:
 	smearing = false
-	_model.set_sitting(false)
+	_model.set_smearing(false)
 
 
 func release_control() -> void:
@@ -176,6 +176,7 @@ func freeze() -> void:
 	locked = true
 	set_catch_hint(false)
 	_model.set_sitting(false)
+	_model.set_smearing(false)
 	velocity = Vector3.ZERO
 	froze.emit()
 
@@ -189,6 +190,14 @@ func debug_jump() -> void:
 	_was_grounded = false
 	_fall_speed = 0.0
 	jumped.emit()
+
+
+func play_catch_pose() -> void:
+	_model.play_catch_pose()
+
+
+func burst_dust() -> void:
+	_model.play_land_dust()
 
 
 func swing_net() -> void:
@@ -254,9 +263,8 @@ func _physics_process(delta: float) -> void:
 		_fall_speed = 0.0
 	_was_grounded = grounded_now
 
-	_update_footsteps(delta, grounded_now)
 	_update_cold(delta)
-	_model.set_motion(get_speed_ratio(), grounded_now, _running)
+	_model.set_motion(get_speed_ratio(), grounded_now, _running, velocity.length(), velocity)
 
 
 func _rope_air_active() -> bool:
@@ -360,12 +368,29 @@ func _handle_movement(up: Vector3, delta: float) -> void:
 	var target_speed: float = walk_speed * (run_multiplier if _running else 1.0)
 	if input.length_squared() > 0.01:
 		desired = (right * input.x - forward * input.y).normalized() * target_speed
-		_facing = desired.normalized()
+		_turn_toward(desired.normalized(), up, delta)
 	var tangent: Vector3 = velocity - up * velocity.dot(up)
 	var accel: float = ground_acceleration if is_on_floor() else air_acceleration
 	tangent = tangent.move_toward(desired, accel * delta)
 	var radial: float = velocity.dot(up)
 	velocity = tangent + up * radial
+
+
+func _turn_toward(wanted: Vector3, up: Vector3, delta: float) -> void:
+	var target: Vector3 = wanted - up * wanted.dot(up)
+	if target.length_squared() < 0.0001:
+		return
+	target = target.normalized()
+	var current: Vector3 = _facing - up * _facing.dot(up)
+	if current.length_squared() < 0.0001:
+		_facing = target
+		return
+	var angle: float = current.normalized().signed_angle_to(target, up)
+	var step: float = turn_speed * delta
+	if absf(angle) <= step:
+		_facing = target
+		return
+	_facing = current.normalized().rotated(up, signf(angle) * step).normalized()
 
 
 func _update_basis(up: Vector3) -> void:
@@ -388,18 +413,10 @@ func _keep_above_surface(up: Vector3) -> void:
 			velocity -= up * velocity.dot(up)
 
 
-func _update_footsteps(delta: float, grounded: bool) -> void:
-	if not grounded or locked:
+func _on_footstepped(side: int) -> void:
+	if dead or locked:
 		return
-	var horizontal: float = (velocity - get_up() * velocity.dot(get_up())).length()
-	if horizontal < 0.45:
-		return
-	_step_distance += horizontal * delta
-	if _step_distance < footstep_distance:
-		return
-	_step_distance = 0.0
-	_step_toggle = not _step_toggle
-	_play("footstep_2" if _step_toggle else "footstep_1", -9.0, 0.08)
+	_play("footstep_2" if side == 1 else "footstep_1", -9.0, 0.08)
 
 
 func _update_cold(delta: float) -> void:

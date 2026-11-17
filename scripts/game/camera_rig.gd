@@ -18,6 +18,7 @@ var _shake: float = 0.0
 var _intro: float = 1.0
 var _time: float = 0.0
 var _focus: float = 1.0
+var _altitude: float = 0.0
 var _target_focus: float = 1.0
 
 @onready var _camera: Camera3D = %Camera
@@ -26,6 +27,9 @@ var _target_focus: float = 1.0
 func setup(target: Node3D, planet: Planet) -> void:
 	_target = target
 	_planet = planet
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	if _camera != null:
+		_camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	var up: Vector3 = (target.global_position - planet.get_center()).normalized()
 	var desired_heading: Vector3 = Vector3.FORWARD - up * up.dot(Vector3.FORWARD)
 	if desired_heading.length_squared() < 0.01:
@@ -83,9 +87,9 @@ func _process(delta: float) -> void:
 	_shake = move_toward(_shake, 0.0, delta * 2.2)
 	_focus = lerpf(_focus, _target_focus, 1.0 - exp(-3.5 * delta))
 
-	var target_position: Vector3 = _target.global_position
+	var target_position: Vector3 = _target.get_global_transform_interpolated().origin
 	var horizon: float = (target_position - _planet.get_center()).length() - _planet.radius
-	_orbit = _orbit.lerp(target_position, 1.0 - exp(-11.0 * delta))
+	_orbit = _orbit.lerp(target_position, 1.0 - exp(-18.0 * delta))
 	var orbit_up: Vector3 = (_orbit - _planet.get_center()).normalized()
 
 	_heading = _heading - orbit_up * _heading.dot(orbit_up)
@@ -94,10 +98,11 @@ func _process(delta: float) -> void:
 	_heading = _heading.normalized()
 
 	var altitude: float = maxf(horizon, 0.0)
+	_altitude = lerpf(_altitude, altitude, 1.0 - exp(-2.5 * delta))
 	var lift: float = base_lift + _planet.radius * 0.11
-	lift += clampf(altitude * 0.55, 0.0, 30.0)
+	lift += clampf(_altitude * 0.55, 0.0, 30.0)
 	var distance: float = base_distance + _planet.radius * 0.19
-	distance += clampf(altitude * 0.35, 0.0, 22.0)
+	distance += clampf(_altitude * 0.35, 0.0, 22.0)
 	lift += _intro * 5.0
 	distance += _intro * 9.0
 	lift /= _focus
@@ -105,18 +110,17 @@ func _process(delta: float) -> void:
 
 	var view_forward: Vector3 = _heading.rotated(orbit_up, _view_yaw)
 	var desired: Vector3 = _orbit + orbit_up * lift - view_forward * distance
-	_camera.global_position = _camera.global_position.lerp(desired, 1.0 - exp(-9.0 * delta))
+	_camera.global_position = _camera.global_position.lerp(desired, 1.0 - exp(-20.0 * delta))
 	if _shake > 0.001:
 		var offset := Vector3(
 			randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)
 		)
 		_camera.global_position += offset * _shake
 
-	var sway: Vector3 = orbit_up * (sin(_time * 0.45) * 0.06)
-	var look_target: Vector3 = _orbit + orbit_up * 0.55 + view_forward * 1.1 + sway
+	var look_target: Vector3 = _orbit + orbit_up * 0.55 + view_forward * 1.1
 	_camera.look_at(look_target, orbit_up)
 	_camera.fov = lerpf(
-		_camera.fov, 52.0 + clampf(altitude * 0.20, 0.0, 10.0), 1.0 - exp(-2.0 * delta)
+		_camera.fov, 52.0 + clampf(_altitude * 0.20, 0.0, 10.0), 1.0 - exp(-2.0 * delta)
 	)
 
 
