@@ -147,11 +147,11 @@ push branch → open PR → squash-merge → pull `master` back down. Equivalent
 need finer control:
 
 ```bash
-git fetch origin && git switch -c agent/<topic> origin/master
+git fetch origin && git switch -c agent/<topic>-<machine> origin/master
 # ... work ...
 git add -A && git commit -m "feat: ..." && git fetch origin && git rebase origin/master
 git push -u origin HEAD
-gh pr create --base master --head agent/<topic> --fill
+gh pr create --base master --head agent/<topic>-<machine> --fill
 gh pr merge --squash --delete-branch
 git switch master && git pull --ff-only
 ```

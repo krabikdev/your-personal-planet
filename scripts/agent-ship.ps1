@@ -96,8 +96,15 @@ if ($branch -eq 'master') {
     $slug = ($Message.ToLower() -replace '[^a-z0-9]+', '-').Trim('-')
     if (-not $slug) { $slug = 'change' }
     if ($slug.Length -gt 40) { $slug = $slug.Substring(0, 40).Trim('-') }
-    $branch = "agent/$slug"
-    git switch -c $branch
+    $machine = ($env:COMPUTERNAME).ToLower() -replace '[^a-z0-9]+', '-'
+    if (-not $machine) { $machine = 'machine' }
+    $branch = "agent/$slug-$machine"
+    if ($branch.Length -gt 60) { $branch = $branch.Substring(0, 60).Trim('-') }
+    if (git branch --list $branch) {
+        git switch $branch
+    } else {
+        git switch -c $branch
+    }
     if ($LASTEXITCODE -ne 0) {
         Stop-With "Could not create the working branch '$branch'."
     }
