@@ -54,6 +54,7 @@ func _ready() -> void:
 	add_child(_rope)
 	_rope.setup(_planet, _player)
 	_rope.planted.connect(_on_rope_planted)
+	_rope.removed.connect(_on_rope_removed)
 	_rope.snapped.connect(_on_rope_snapped)
 	_player.set_rope(_rope)
 
@@ -100,6 +101,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("plant") and _state == State.PLAYING:
 		_player.plant_stake()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("unplant") and _state == State.PLAYING:
+		_player.remove_stake()
 		get_viewport().set_input_as_handled()
 		return
 	if (
@@ -253,6 +258,10 @@ func _on_player_landed(strength: float) -> void:
 
 func _on_rope_planted() -> void:
 	_hud.show_toast("Кілок забито. Канат тримає тебе.", Color("cdb38d"), 3.0)
+
+
+func _on_rope_removed() -> void:
+	_hud.show_toast("Кілок і канат прибрано.", Color("cdb38d"), 2.0)
 
 
 func _on_rope_snapped(force: float) -> void:

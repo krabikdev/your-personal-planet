@@ -131,8 +131,8 @@ layout_mode = 2
 layout_mode = 2
 theme_type_variation = &"SmallLabel"
 text = "WASD — рух     ·     Shift — біг     ·     Пробіл — стрибок
-Q — забити кілок з канатом     ·     ЛКМ — замахнутися сачком     ·     I — сумка
-Рухай мишкою — поворот камери"
+Q — забити кілок     ·     E — зняти кілок і канат     ·     ЛКМ — замахнутися сачком
+I — сумка     ·     рухай мишкою — поворот камери"
 autowrap_mode = 3
 
 [node name="BackButton" type="Button" parent="Overlay/Margin/Center/Panel/PanelMargin/VBox"]

@@ -101,6 +101,16 @@ func plant_stake() -> void:
 	rope.plant(global_position + spot.normalized() * 0.95)
 
 
+func remove_stake() -> void:
+	if dead or locked or rope == null or not rope.is_planted():
+		return
+	_rope_crawl = false
+	_rope_recoil = 0.0
+	_rope_brake_latch = false
+	rope.clear()
+	_play("whoosh", -7.0, 0.15)
+
+
 func snap_to_surface() -> void:
 	if planet == null:
 		return
@@ -179,10 +189,6 @@ func debug_jump() -> void:
 	_was_grounded = false
 	_fall_speed = 0.0
 	jumped.emit()
-
-
-func play_catch_pose() -> void:
-	_model.play_catch_pose()
 
 
 func swing_net() -> void:
