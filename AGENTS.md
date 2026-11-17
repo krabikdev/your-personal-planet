@@ -124,4 +124,6 @@ test under `tests/` (`extends GutTest`, file name `test_*.gd`).
 ## Commits
 
 - One feature per commit, imperative subject (`feat: add player dash`).
+- **Always push after committing.** Every commit goes to `origin` on GitHub before the task is
+  reported as done — never leave commits sitting locally.
 - Never commit `.godot/`, `export_presets.cfg`, `.env`, or keystores.
