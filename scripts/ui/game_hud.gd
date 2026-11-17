@@ -137,5 +137,5 @@ func fade_controls() -> void:
 func _populate_controls() -> void:
 	_controls_label.text = (
 		"WASD  рух     ·     Shift  біг     ·     Пробіл  стрибок     ·     "
-		+ "E  кілок     ·     ЛКМ  сачок     ·     I  сумка     ·     Миша  поворот камери"
+		+ "ПКМ  кілок     ·     ЛКМ  сачок     ·     I  сумка     ·     Миша  камера"
 	)
