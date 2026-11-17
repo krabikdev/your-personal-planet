@@ -178,7 +178,7 @@ func _update_rope() -> void:
 		return
 	var direction: Vector3 = offset / length
 	var basis := Basis(Quaternion(Vector3.UP, direction))
-	basis = basis.scaled(Vector3(1.0, length, 1.0))
+	basis = basis * Basis.from_scale(Vector3(1.0, length, 1.0))
 	_rope.global_transform = Transform3D(basis, (from + to) * 0.5)
 
 

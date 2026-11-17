@@ -10,17 +10,28 @@ func _make_game() -> Game:
 	return game
 
 
-func test_plant_action_is_mapped_to_q() -> void:
-	assert_true(InputMap.has_action("plant"), "Q should be mapped to the plant action")
-
-
-func test_unplant_action_is_mapped_to_e() -> void:
-	assert_true(InputMap.has_action("unplant"), "E should be mapped to the unplant action")
+func test_stake_action_is_mapped_to_e() -> void:
+	assert_true(InputMap.has_action("stake"), "E should be mapped to the stake action")
 	var found_e: bool = false
-	for event: InputEvent in InputMap.action_get_events("unplant"):
+	for event: InputEvent in InputMap.action_get_events("stake"):
 		if event is InputEventKey and (event as InputEventKey).physical_keycode == KEY_E:
 			found_e = true
-	assert_true(found_e, "the stake should be removed with E")
+	assert_true(found_e, "the stake should be planted with E")
+
+
+func test_pressing_e_toggles_the_stake() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+	var player: Boy = game.get_node("Player") as Boy
+
+	var press := InputEventAction.new()
+	press.action = "stake"
+	press.pressed = true
+	game._unhandled_input(press)
+	assert_true(player.rope.is_planted(), "the first E should plant the stake")
+
+	game._unhandled_input(press)
+	assert_false(player.rope.is_planted(), "the second E should pull the stake out")
 
 
 func test_the_boy_hammers_a_stake_into_the_ground() -> void:
