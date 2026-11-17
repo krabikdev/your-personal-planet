@@ -69,3 +69,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1
 Скрипт перевіряє форматування, лінт, завантаження проєкту та GUT-тести
 (32 тести). Для візуальної перевірки є `tools/visual_stage.tscn` і
 `tools/menu_stage.tscn` — їх можна записати через `--write-movie`.
+
+## Команда
+
+Как мы работаем вместе (для людей и AI-агентов): [docs/WORKFLOW.md](docs/WORKFLOW.md).
+
+До начала работы подтяните свежие изменения:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sync.ps1
+```
+
+```bash
+./scripts/sync.sh
+```

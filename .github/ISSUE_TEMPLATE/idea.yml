@@ -1,0 +1,42 @@
+name: Idea
+description: Something we could add or try
+title: "[Idea] "
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the idea the way you would explain it to a friend.
+        AI agents read this card before they start work.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should the game do?
+      placeholder: The boy could leave footprints in the snow.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: What does it add for the player?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Gameplay
+        - UI/UX
+        - Audio
+        - Visuals
+        - Performance
+        - Tooling
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes for the agent
+      description: Files that might be involved, things to avoid, references.
