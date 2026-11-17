@@ -1,0 +1,188 @@
+2026-10-24T13:56:00.451Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-24T13:56:01.679Z game booted, preloading model in background...
+2026-10-24T13:56:06.680Z boot start
+2026-10-24T13:56:06.681Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-24T13:56:06.716Z tokenizer.json bytes: 8070105
+2026-10-24T13:56:07.137Z tokenizer ready
+2026-10-24T13:56:07.155Z config bytes: 12593/164/2860874/249851
+2026-10-24T13:56:07.157Z reward multiplier x2
+2026-10-24T13:56:07.239Z got js/plugins/actionrater/knn_data.bin in 29ms
+2026-10-24T13:56:07.247Z knn_data bytes: 16180224
+2026-10-24T13:56:07.251Z got js/plugins/actionrater/knn_labels.bin in 2ms
+2026-10-24T13:56:07.252Z model.onnx progress: 0/448 МБ
+2026-10-24T13:56:10.433Z got js/plugins/actionrater/model.onnx in 3184ms
+2026-10-24T13:56:10.702Z knn_labels bytes: 42136
+2026-10-24T13:56:10.704Z model.onnx bytes: 470216987
+2026-10-24T13:56:13.312Z boot complete
+2026-10-24T14:00:16.346Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-24T14:00:17.561Z game booted, preloading model in background...
+2026-10-24T14:00:22.561Z boot start
+2026-10-24T14:00:22.563Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-24T14:00:22.790Z tokenizer.json bytes: 8070105
+2026-10-24T14:00:23.271Z tokenizer ready
+2026-10-24T14:00:23.339Z config bytes: 12593/164/2860874/249851
+2026-10-24T14:00:23.340Z reward multiplier x2
+2026-10-24T14:00:23.511Z got js/plugins/actionrater/knn_data.bin in 140ms
+2026-10-24T14:00:23.525Z knn_data bytes: 16180224
+2026-10-24T14:00:23.534Z model.onnx progress: 0/448 МБ
+2026-10-24T14:00:23.535Z got js/plugins/actionrater/knn_labels.bin in 9ms
+2026-10-24T14:00:27.385Z got js/plugins/actionrater/model.onnx in 3859ms
+2026-10-24T14:00:27.550Z knn_labels bytes: 42136
+2026-10-24T14:00:27.550Z model.onnx bytes: 470216987
+2026-10-24T14:00:29.609Z boot complete
+2026-10-24T14:01:08.238Z rated: пробіг 10 км
+2026-10-24T14:01:08.358Z result: type=VALID reward=200 ep=320
+2026-10-24T14:02:46.897Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-24T14:02:48.004Z game booted, preloading model in background...
+2026-10-24T14:03:32.989Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-24T14:03:34.056Z game booted, preloading model in background...
+2026-10-24T14:03:39.057Z boot start
+2026-10-24T14:03:39.058Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-24T14:03:39.115Z tokenizer.json bytes: 8070105
+2026-10-24T14:03:39.524Z tokenizer ready
+2026-10-24T14:03:39.565Z config bytes: 12593/164/2860874/249851
+2026-10-24T14:03:39.566Z reward multiplier x2
+2026-10-24T14:03:39.710Z got js/plugins/actionrater/knn_data.bin in 96ms
+2026-10-24T14:03:39.723Z knn_data bytes: 16180224
+2026-10-24T14:03:39.729Z got js/plugins/actionrater/knn_labels.bin in 5ms
+2026-10-24T14:03:39.730Z model.onnx progress: 0/448 МБ
+2026-10-24T14:05:18.123Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-24T14:05:19.275Z game booted, preloading model in background...
+2026-10-24T14:07:06.592Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-24T14:07:07.681Z game booted, preloading model in background...
+2026-10-24T14:09:39.497Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-24T14:09:40.606Z game booted, preloading model in background...
+2026-10-24T14:11:06.806Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-24T14:11:07.962Z game booted, preloading model in background...
+2026-10-29T10:19:51.356Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:19:52.896Z game booted, preloading model in background...
+2026-10-29T10:21:19.109Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:21:20.469Z game booted, preloading model in background...
+2026-10-29T10:22:45.181Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:22:46.393Z game booted, preloading model in background...
+2026-10-29T10:22:51.395Z boot start
+2026-10-29T10:22:51.396Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-29T10:22:51.467Z tokenizer.json bytes: 8070105
+2026-10-29T10:22:51.888Z tokenizer ready
+2026-10-29T10:22:51.937Z config bytes: 12593/164/2860874/249851
+2026-10-29T10:22:51.939Z reward multiplier x2
+2026-10-29T10:22:52.074Z got js/plugins/actionrater/knn_data.bin in 109ms
+2026-10-29T10:22:52.087Z knn_data bytes: 16180224
+2026-10-29T10:22:52.103Z got js/plugins/actionrater/knn_labels.bin in 16ms
+2026-10-29T10:22:52.121Z model.onnx progress: 0/448 МБ
+2026-10-29T10:22:55.221Z got js/plugins/actionrater/model.onnx in 3134ms
+2026-10-29T10:22:55.424Z knn_labels bytes: 42136
+2026-10-29T10:22:55.425Z model.onnx bytes: 470216987
+2026-10-29T10:22:59.286Z boot complete
+2026-10-29T10:23:44.582Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:23:45.868Z game booted, preloading model in background...
+2026-10-29T10:23:50.871Z boot start
+2026-10-29T10:23:50.872Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-29T10:23:50.929Z tokenizer.json bytes: 8070105
+2026-10-29T10:23:51.376Z tokenizer ready
+2026-10-29T10:23:51.396Z config bytes: 12593/164/2860874/249851
+2026-10-29T10:23:51.398Z reward multiplier x2
+2026-10-29T10:23:51.562Z got js/plugins/actionrater/knn_data.bin in 95ms
+2026-10-29T10:23:51.568Z knn_data bytes: 16180224
+2026-10-29T10:23:51.573Z got js/plugins/actionrater/knn_labels.bin in 4ms
+2026-10-29T10:23:51.573Z model.onnx progress: 0/448 МБ
+2026-10-29T10:23:54.857Z got js/plugins/actionrater/model.onnx in 3288ms
+2026-10-29T10:23:55.009Z knn_labels bytes: 42136
+2026-10-29T10:23:55.010Z model.onnx bytes: 470216987
+2026-10-29T10:23:57.327Z boot complete
+2026-10-29T10:26:02.220Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:26:03.300Z game booted, preloading model in background...
+2026-10-29T10:26:08.301Z boot start
+2026-10-29T10:26:08.302Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-29T10:26:08.366Z tokenizer.json bytes: 8070105
+2026-10-29T10:26:08.718Z tokenizer ready
+2026-10-29T10:26:08.754Z config bytes: 12593/164/2860874/249851
+2026-10-29T10:26:08.758Z reward multiplier x2
+2026-10-29T10:26:08.872Z got js/plugins/actionrater/knn_data.bin in 78ms
+2026-10-29T10:26:08.878Z knn_data bytes: 16180224
+2026-10-29T10:26:08.882Z model.onnx progress: 0/448 МБ
+2026-10-29T10:26:08.882Z got js/plugins/actionrater/knn_labels.bin in 2ms
+2026-10-29T10:26:11.597Z got js/plugins/actionrater/model.onnx in 2717ms
+2026-10-29T10:26:11.735Z knn_labels bytes: 42136
+2026-10-29T10:26:11.736Z model.onnx bytes: 470216987
+2026-10-29T10:26:13.446Z boot complete
+2026-10-29T10:27:35.547Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:27:36.598Z game booted, preloading model in background...
+2026-10-29T10:27:41.600Z boot start
+2026-10-29T10:27:41.601Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-29T10:27:41.649Z tokenizer.json bytes: 8070105
+2026-10-29T10:27:41.976Z tokenizer ready
+2026-10-29T10:27:42.009Z config bytes: 12593/164/2860874/249851
+2026-10-29T10:27:42.010Z reward multiplier x2
+2026-10-29T10:27:42.150Z got js/plugins/actionrater/knn_data.bin in 90ms
+2026-10-29T10:27:42.156Z knn_data bytes: 16180224
+2026-10-29T10:27:42.160Z got js/plugins/actionrater/knn_labels.bin in 3ms
+2026-10-29T10:27:42.160Z model.onnx progress: 0/448 МБ
+2026-10-29T10:27:43.846Z got js/plugins/actionrater/model.onnx in 1689ms
+2026-10-29T10:27:43.981Z knn_labels bytes: 42136
+2026-10-29T10:27:43.982Z model.onnx bytes: 470216987
+2026-10-29T10:27:45.616Z boot complete
+2026-10-29T10:30:11.073Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:30:12.130Z game booted, preloading model in background...
+2026-10-29T10:30:17.132Z boot start
+2026-10-29T10:30:17.134Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-29T10:30:17.181Z tokenizer.json bytes: 8070105
+2026-10-29T10:30:17.541Z tokenizer ready
+2026-10-29T10:30:17.571Z config bytes: 12593/164/2860874/249851
+2026-10-29T10:30:17.572Z reward multiplier x2
+2026-10-29T10:30:17.696Z got js/plugins/actionrater/knn_data.bin in 92ms
+2026-10-29T10:30:17.708Z knn_data bytes: 16180224
+2026-10-29T10:30:17.715Z got js/plugins/actionrater/knn_labels.bin in 6ms
+2026-10-29T10:30:17.715Z model.onnx progress: 0/448 МБ
+2026-10-29T10:30:20.741Z got js/plugins/actionrater/model.onnx in 3031ms
+2026-10-29T10:30:20.872Z knn_labels bytes: 42136
+2026-10-29T10:30:20.872Z model.onnx bytes: 470216987
+2026-10-29T10:30:22.477Z boot complete
+2026-10-29T10:31:57.354Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:31:58.413Z game booted, preloading model in background...
+2026-10-29T10:32:03.415Z boot start
+2026-10-29T10:32:03.417Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-29T10:32:03.472Z tokenizer.json bytes: 8070105
+2026-10-29T10:32:03.825Z tokenizer ready
+2026-10-29T10:32:03.852Z config bytes: 12593/164/2860874/249851
+2026-10-29T10:32:03.854Z reward multiplier x2
+2026-10-29T10:32:04.022Z got js/plugins/actionrater/knn_data.bin in 137ms
+2026-10-29T10:32:04.030Z knn_data bytes: 16180224
+2026-10-29T10:32:04.033Z got js/plugins/actionrater/knn_labels.bin in 3ms
+2026-10-29T10:32:04.034Z model.onnx progress: 0/448 МБ
+2026-10-29T10:32:06.089Z got js/plugins/actionrater/model.onnx in 2059ms
+2026-10-29T10:32:06.216Z knn_labels bytes: 42136
+2026-10-29T10:32:06.216Z model.onnx bytes: 470216987
+2026-10-29T10:32:07.743Z boot complete
+2026-10-29T10:33:50.886Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:33:51.979Z game booted, preloading model in background...
+2026-10-29T10:33:56.980Z boot start
+2026-10-29T10:33:56.983Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-29T10:33:57.031Z tokenizer.json bytes: 8070105
+2026-10-29T10:33:57.413Z tokenizer ready
+2026-10-29T10:33:57.427Z config bytes: 12593/164/2860874/249851
+2026-10-29T10:33:57.429Z reward multiplier x2
+2026-10-29T10:33:57.501Z got js/plugins/actionrater/knn_data.bin in 44ms
+2026-10-29T10:33:57.511Z knn_data bytes: 16180224
+2026-10-29T10:33:57.517Z model.onnx progress: 0/448 МБ
+2026-10-29T10:33:57.518Z got js/plugins/actionrater/knn_labels.bin in 5ms
+2026-10-29T10:34:00.570Z got js/plugins/actionrater/model.onnx in 3056ms
+2026-10-29T10:34:00.709Z knn_labels bytes: 42136
+2026-10-29T10:34:00.710Z model.onnx bytes: 470216987
+2026-10-29T10:34:02.509Z boot complete
+2026-10-29T10:34:39.214Z gui loaded, Scene_Boot=function Scene_Map=function
+2026-10-29T10:34:40.245Z game booted, preloading model in background...
+2026-10-29T10:34:45.246Z boot start
+2026-10-29T10:34:45.248Z fs failed, XHR fallback: ENOENT: no such file or directory, open 'C:\Godot\www\js\plugins\actionrater\tokenizer.json'
+2026-10-29T10:34:45.280Z tokenizer.json bytes: 8070105
+2026-10-29T10:34:45.641Z tokenizer ready
+2026-10-29T10:34:45.661Z config bytes: 12593/164/2860874/249851
+2026-10-29T10:34:45.662Z reward multiplier x2
+2026-10-29T10:34:45.730Z got js/plugins/actionrater/knn_data.bin in 26ms
+2026-10-29T10:34:45.735Z knn_data bytes: 16180224
+2026-10-29T10:34:45.741Z got js/plugins/actionrater/knn_labels.bin in 5ms
+2026-10-29T10:34:45.742Z model.onnx progress: 0/448 МБ
+2026-10-29T10:34:47.518Z got js/plugins/actionrater/model.onnx in 1781ms
+2026-10-29T10:34:47.650Z knn_labels bytes: 42136
+2026-10-29T10:34:47.651Z model.onnx bytes: 470216987
+2026-10-29T10:34:49.105Z boot complete

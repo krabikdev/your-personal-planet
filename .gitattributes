@@ -1,0 +1,18 @@
+# Normalize text files to LF in the repository so Windows and CI agree, and so
+# git stops emitting a CRLF-conversion warning for every file on `git add`.
+* text=auto eol=lf
+
+# Binary assets — never touch their line endings.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.svg text eol=lf
+*.ttf binary
+*.otf binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.zip binary
+*.dll binary
+*.pck binary

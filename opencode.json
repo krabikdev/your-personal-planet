@@ -1,0 +1,67 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "godot-ai": {
+        "type": "local",
+        "command": [
+          "C:\\Program Files\\WinGet\\Links\\uvx.exe",
+          "--isolated",
+          "--no-config",
+          "--no-env-file",
+          "--no-sources",
+          "--no-build",
+          "--index-strategy",
+          "first-index",
+          "--keyring-provider",
+          "disabled",
+          "--index",
+          "https://pypi.org/simple",
+          "--default-index",
+          "https://pypi.org/simple",
+          "--find-links",
+          "https://pypi.org/simple/godot-ai/",
+          "--link-mode",
+          "copy",
+          "--from",
+          "godot-ai==4.3.1",
+          "godot-ai",
+          "attach",
+          "--port",
+          "8000",
+          "--ws-port",
+          "9500"
+        ],
+        "cwd": "."
+      },
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp"
+      },
+      "godot-mcp-cli": {
+        "type": "local",
+        "command": ["cmd", "/c", "npx", "-y", "@coding-solo/godot-mcp"],
+        "environment": {
+          "GODOT_PATH": "{env:GODOT}"
+        },
+        "disabled": true
+      },
+      "open-godot-mcp": {
+        "type": "local",
+        "command": ["open-godot-mcp"],
+        "disabled": true
+      }
+    }
+  },
+  "providers": {
+    "opencode": {
+      "models": {
+        "deepseek-v4.1-flash-free": {
+          "limit": {
+            "context": 1048576
+          }
+        }
+      }
+    }
+  }
+}
