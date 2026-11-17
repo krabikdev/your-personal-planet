@@ -1,0 +1,242 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/game_hud.gd" id="1_hud"]
+
+[sub_resource type="Gradient" id="Gradient_bottom"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0.02, 0.02, 0.045, 0, 0.02, 0.02, 0.045, 0.32, 0.02, 0.02, 0.045, 0.82)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_bottom"]
+gradient = SubResource("Gradient_bottom")
+width = 16
+height = 256
+fill_from = Vector2(0.5, 0)
+fill_to = Vector2(0.5, 1)
+
+[node name="GameHud" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_hud")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BottomShade" type="TextureRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -220.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_bottom")
+expand_mode = 1
+stretch_mode = 1
+
+[node name="Margin" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="Root/Margin"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TopBar" type="HBoxContainer" parent="Root/Margin/VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="StatsPanel" type="PanelContainer" parent="Root/Margin/VBox/TopBar"]
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="StatsMargin" type="MarginContainer" parent="Root/Margin/VBox/TopBar/StatsPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 11
+
+[node name="StatsVBox" type="VBoxContainer" parent="Root/Margin/VBox/TopBar/StatsPanel/StatsMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="SectionLabel" type="Label" parent="Root/Margin/VBox/TopBar/StatsPanel/StatsMargin/StatsVBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"SectionLabel"
+text = "ПЛАНЕТА"
+
+[node name="DiameterLabel" type="Label" parent="Root/Margin/VBox/TopBar/StatsPanel/StatsMargin/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"StatValue"
+text = "Ø  20.0 × хлопчик"
+
+[node name="GravityLabel" type="Label" parent="Root/Margin/VBox/TopBar/StatsPanel/StatsMargin/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"SmallLabel"
+text = "Гравітація  3.0"
+
+[node name="JumpLabel" type="Label" parent="Root/Margin/VBox/TopBar/StatsPanel/StatsMargin/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"SmallLabel"
+text = "Стрибок  32.7 м"
+
+[node name="SafetyLabel" type="Label" parent="Root/Margin/VBox/TopBar/StatsPanel/StatsMargin/StatsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"AccentLabel"
+text = "небезпечний стрибок"
+
+[node name="Spacer" type="Control" parent="Root/Margin/VBox/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="InventoryButton" type="Button" parent="Root/Margin/VBox/TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(190, 48)
+layout_mode = 2
+size_flags_vertical = 0
+text = "I   ·   Сумка  0"
+
+[node name="FlexSpacer" type="Control" parent="Root/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="BottomArea" type="VBoxContainer" parent="Root/Margin/VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="WarningLabel" type="Label" parent="Root/Margin/VBox/BottomArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"H1"
+text = "Камінь летить повз планету
+знайди світло на землі"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ToastLabel" type="Label" parent="Root/Margin/VBox/BottomArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"Subtitle"
+text = "Камінь у сумці"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ColdLabel" type="Label" parent="Root/Margin/VBox/BottomArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"DangerLabel"
+text = "Холод тягне тебе в темряву"
+horizontal_alignment = 1
+
+[node name="ControlsLabel" type="Label" parent="Root/Margin/VBox/BottomArea"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"SmallLabel"
+theme_override_colors/font_color = Color(0.95, 0.9, 0.82, 0.85)
+text = "WASD  рух     ·     Пробіл  стрибок     ·     E  зловити     ·     I  сумка"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="IntroPanel" type="Control" parent="Root"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Center" type="CenterContainer" parent="Root/IntroPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="IntroBox" type="PanelContainer" parent="Root/IntroPanel/Center"]
+custom_minimum_size = Vector2(540, 0)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="IntroMargin" type="MarginContainer" parent="Root/IntroPanel/Center/IntroBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 34
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 34
+theme_override_constants/margin_bottom = 28
+
+[node name="IntroVBox" type="VBoxContainer" parent="Root/IntroPanel/Center/IntroBox/IntroMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="IntroTitle" type="Label" parent="Root/IntroPanel/Center/IntroBox/IntroMargin/IntroVBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"H1"
+text = "Маленька планета"
+horizontal_alignment = 1
+
+[node name="IntroBody" type="Label" parent="Root/IntroPanel/Center/IntroBox/IntroMargin/IntroVBox"]
+custom_minimum_size = Vector2(470, 0)
+layout_mode = 2
+mouse_filter = 2
+text = "Тут майже нічого немає. Лише каміння, тиша і ти.
+
+Стрибок на такій маленькій планеті сильніший за її гравітацію. Якщо стрибнути — можна полетіти в порожнечу й замерзнути.
+
+Лови космічне сміття клавішею E, коли воно пролітає над тобою, і вмазуй його в землю. Планета ростиме, а гравітація стане сильнішою."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="IntroHint" type="Label" parent="Root/IntroPanel/Center/IntroBox/IntroMargin/IntroVBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"AccentLabel"
+text = "WASD  рух     ·     Пробіл  стрибок     ·     I  сумка"
+horizontal_alignment = 1

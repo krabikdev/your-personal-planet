@@ -1,0 +1,77 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/game.gd" id="1_game"]
+[ext_resource type="Script" path="res://scripts/game/debris_manager.gd" id="2_debris"]
+[ext_resource type="PackedScene" path="res://scenes/planet.tscn" id="3_planet"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="4_player"]
+[ext_resource type="PackedScene" path="res://scenes/camera_rig.tscn" id="5_camera"]
+[ext_resource type="PackedScene" path="res://ui/game_hud.tscn" id="6_hud"]
+[ext_resource type="PackedScene" path="res://ui/inventory_panel.tscn" id="7_inventory"]
+[ext_resource type="PackedScene" path="res://ui/game_over.tscn" id="8_over"]
+[ext_resource type="PackedScene" path="res://ui/pause_menu.tscn" id="9_pause"]
+[ext_resource type="Shader" path="res://shaders/frost_overlay.gdshader" id="10_frost"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_frost"]
+shader = ExtResource("10_frost")
+shader_parameter/progress = 0.0
+
+[node name="Game" type="Node3D"]
+script = ExtResource("1_game")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+shadow_enabled = true
+directional_shadow_max_distance = 110.0
+
+[node name="Fill" type="DirectionalLight3D" parent="."]
+light_color = Color(0.62, 0.71, 0.85, 1)
+light_energy = 0.55
+
+[node name="Headlight" type="DirectionalLight3D" parent="."]
+light_color = Color(0.74, 0.82, 0.91, 1)
+light_energy = 0.45
+
+[node name="Planet" parent="." instance=ExtResource("3_planet")]
+
+[node name="Player" parent="." instance=ExtResource("4_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.05, 0)
+
+[node name="CameraRig" parent="." instance=ExtResource("5_camera")]
+
+[node name="DebrisManager" type="Node3D" parent="."]
+script = ExtResource("2_debris")
+
+[node name="GameHud" parent="." instance=ExtResource("6_hud")]
+
+[node name="Inventory" parent="." instance=ExtResource("7_inventory")]
+
+[node name="GameOver" parent="." instance=ExtResource("8_over")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("9_pause")]
+
+[node name="Frost" type="CanvasLayer" parent="."]
+layer = 5
+
+[node name="FrostRect" type="ColorRect" parent="Frost"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+material = SubResource("ShaderMaterial_frost")
+
+[node name="Fade" type="CanvasLayer" parent="."]
+layer = 40
+
+[node name="FadeRect" type="ColorRect" parent="Fade"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.015, 0.015, 0.03, 1)

@@ -1,0 +1,59 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/game/boy_model.gd" id="2_model"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.22
+height = 1.0
+
+[sub_resource type="SystemFont" id="SystemFont_hint"]
+font_names = PackedStringArray("Georgia", "Palatino Linotype", "Times New Roman", "Segoe UI", "serif")
+font_weight = 700
+
+[node name="Player" type="CharacterBody3D"]
+floor_snap_length = 0.55
+floor_stop_on_slope = true
+script = ExtResource("1_player")
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="Visual" type="Node3D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("2_model")
+
+[node name="CatchHint" type="Node3D" parent="."]
+unique_name_in_owner = true
+visible = false
+position = Vector3(0, 1.75, 0)
+
+[node name="Key" type="Label3D" parent="CatchHint"]
+font = SubResource("SystemFont_hint")
+font_size = 160
+outline_size = 30
+modulate = Color(1, 0.88, 0.68, 1)
+outline_modulate = Color(0.13, 0.09, 0.11, 0.92)
+text = "E"
+pixel_size = 0.004
+billboard = 1
+no_depth_test = true
+
+[node name="Action" type="Label3D" parent="CatchHint"]
+position = Vector3(0, -0.42, 0)
+font = SubResource("SystemFont_hint")
+font_size = 48
+outline_size = 16
+modulate = Color(0.91, 0.82, 0.72, 1)
+outline_modulate = Color(0.13, 0.09, 0.11, 0.9)
+text = "зловити"
+pixel_size = 0.004
+billboard = 1
+no_depth_test = true
+
+[node name="Audio" type="AudioStreamPlayer3D" parent="."]
+unique_name_in_owner = true
+volume_db = -8.0
+unit_size = 8.0
+max_distance = 45.0

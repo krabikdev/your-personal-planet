@@ -1,0 +1,32 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/planet.gd" id="1_planet"]
+[ext_resource type="Shader" path="res://shaders/planet_surface.gdshader" id="2_surface"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_body"]
+radius = 5.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_surface"]
+radius = 1.0
+height = 2.0
+radial_segments = 96
+rings = 48
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_surface"]
+shader = ExtResource("2_surface")
+shader_parameter/planet_radius = 5.0
+shader_parameter/bump_height = 0.16
+
+[node name="Planet" type="StaticBody3D"]
+script = ExtResource("1_planet")
+initial_radius = 5.0
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+unique_name_in_owner = true
+shape = SubResource("SphereShape3D_body")
+
+[node name="Surface" type="MeshInstance3D" parent="."]
+unique_name_in_owner = true
+scale = Vector3(5, 5, 5)
+mesh = SubResource("SphereMesh_surface")
+material_override = SubResource("ShaderMaterial_surface")
