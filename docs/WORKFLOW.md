@@ -202,6 +202,8 @@ pushed is recoverable for 30 days.
 
 ## House rules (for agents)
 
+- **Sync before you touch a file; ship after every green change.** No exceptions, on either
+  machine. If `git status` is not clean at the end, the task is not finished.
 - Read the board and the open pull requests before starting.
 - Never commit or push to `master`. Use `agent-ship` or an equivalent branch + PR.
 - Run the full check pipeline after every change. Do not ship red.
