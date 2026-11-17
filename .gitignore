@@ -25,3 +25,20 @@ export_presets.cfg
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Local-only godot_ai addon files (newer addon build, not part of this repo's addon version)
+addons/godot_ai/clients/qoder.gd
+addons/godot_ai/clients/qoder.gd.uid
+addons/godot_ai/clients/qoder_cn.gd
+addons/godot_ai/clients/qoder_cn.gd.uid
+addons/godot_ai/handlers/animation_tree_handler.gd
+addons/godot_ai/handlers/animation_tree_handler.gd.uid
+addons/godot_ai/handlers/audio_bus_handler.gd
+addons/godot_ai/handlers/audio_bus_handler.gd.uid
+addons/godot_ai/utils/client_repair_ownership.gd
+addons/godot_ai/utils/client_repair_ownership.gd.uid
+addons/godot_ai/utils/resource_builders.gd
+addons/godot_ai/utils/resource_builders.gd.uid
+
+# Editor backup files
+*~
