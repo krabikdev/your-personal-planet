@@ -13,6 +13,7 @@ config_version=5
 config/name="Your Personal Planet"
 run/main_scene="res://ui/main_menu.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="uid://dp3o6j2gtxtaa"
 
 [autoload]
 
