@@ -124,7 +124,8 @@ Everything else is the agent's job.
 `master` is protected. Nobody pushes to it, not even the owner - GitHub rejects it.
 Every change travels through a pull request:
 
-1. agent syncs and creates `agent/<short-name>` from the latest `master`
+1. agent syncs and creates `agent/<short-name>-<machine>` from the latest `master`; the machine
+   suffix keeps the two agents apart even if they pick the same topic name
 2. agent writes the change in small steps
 3. `scripts/agent-ship.ps1` (Windows) or `./scripts/agent-ship.sh` (Linux) runs the checks,
    commits, replays the work on top of the newest `master`, pushes, opens a PR and

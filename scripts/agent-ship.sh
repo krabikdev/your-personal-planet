@@ -76,8 +76,15 @@ if [ "$branch" = "master" ]; then
     slug=$(printf '%s' "$message" | tr '[:upper:]' '[:lower:]' \
         | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c1-40 | sed -E 's/-+$//')
     [ -n "$slug" ] || slug=change
-    branch="agent/$slug"
-    git switch -c "$branch" || fail "Could not create the working branch '$branch'."
+    machine=$(hostname -s 2>/dev/null | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+    [ -n "$machine" ] || machine=machine
+    branch="agent/$slug-$machine"
+    branch=$(printf '%s' "$branch" | cut -c1-60 | sed -E 's/-+$//')
+    if git show-ref --verify --quiet "refs/heads/$branch"; then
+        git switch "$branch" || fail "Could not switch to the existing branch '$branch'."
+    else
+        git switch -c "$branch" || fail "Could not create the working branch '$branch'."
+    fi
     echo "Working on a separate branch: $branch (master stays protected)."
 fi
 
