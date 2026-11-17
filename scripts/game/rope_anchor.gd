@@ -1,18 +1,19 @@
 class_name RopeAnchor
 extends Node3D
 
-## The stake the boy hammers into the ground, plus the rope that ties him to it.
-## The rope is a plain distance limit: it does nothing while slack, and once it
-## is taut it stops the boy and throws him back instead of letting him drift off.
+## The small stake the boy hammers into the ground, plus the taut rope that ties
+## him to it. The rope is a plain distance limit: it never changes the boy's
+## physics until it is fully stretched, and then it stops him and throws him back
+## instead of letting him drift off.
 
 signal planted
 signal snapped(force: float)
 
 const ROPE_FRACTION: float = 0.95
-const STAKE_HEIGHT: float = 1.25
-const ROPE_RADIUS: float = 0.012
+const STAKE_HEIGHT: float = 0.5
+const STAKE_SINK: float = 0.06
+const ROPE_RADIUS: float = 0.01
 const HAND_HEIGHT: float = 0.55
-const ROPE_SAG: float = 0.22
 const WOOD := Color("7b5c45")
 const WOOD_DARK := Color("5c4433")
 const ROPE_COLOR := Color("cdb38d")
@@ -24,7 +25,7 @@ var player: Boy
 var _planted: bool = false
 var _anchor: Vector3 = Vector3.ZERO
 var _stake: Node3D
-var _rope_segments: Array[MeshInstance3D] = []
+var _rope: MeshInstance3D
 
 
 func setup(p_planet: Planet, p_player: Boy) -> void:
@@ -76,7 +77,7 @@ func _on_radius_changed(_new_radius: float) -> void:
 	_anchor = planet.get_center() + up * planet.radius
 	if _stake != null:
 		_stake.global_transform = Transform3D(
-			Basis(Quaternion(Vector3.UP, up)), _anchor - up * 0.18
+			Basis(Quaternion(Vector3.UP, up)), _anchor - up * STAKE_SINK
 		)
 
 
@@ -86,40 +87,42 @@ func _build_stake(up: Vector3) -> void:
 	_stake = Node3D.new()
 	_stake.name = "Stake"
 	add_child(_stake)
-	_stake.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, up)), _anchor - up * 0.18)
+	_stake.global_transform = Transform3D(
+		Basis(Quaternion(Vector3.UP, up)), _anchor - up * STAKE_SINK
+	)
 
 	var wood: StandardMaterial3D = _material(WOOD, 0.92)
 	var dark: StandardMaterial3D = _material(WOOD_DARK, 0.94)
 	var iron: StandardMaterial3D = _material(IRON, 0.55)
 
 	var post := CylinderMesh.new()
-	post.top_radius = 0.05
-	post.bottom_radius = 0.075
+	post.top_radius = 0.022
+	post.bottom_radius = 0.03
 	post.height = STAKE_HEIGHT
 	post.radial_segments = 10
 	post.rings = 3
 	_add_mesh(_stake, post, wood, Vector3(0.0, STAKE_HEIGHT * 0.5, 0.0))
 
 	var cap := CylinderMesh.new()
-	cap.top_radius = 0.085
-	cap.bottom_radius = 0.07
-	cap.height = 0.11
+	cap.top_radius = 0.035
+	cap.bottom_radius = 0.028
+	cap.height = 0.05
 	cap.radial_segments = 10
-	_add_mesh(_stake, cap, iron, Vector3(0.0, STAKE_HEIGHT - 0.03, 0.0))
+	_add_mesh(_stake, cap, iron, Vector3(0.0, STAKE_HEIGHT - 0.015, 0.0))
 
 	var band := CylinderMesh.new()
-	band.top_radius = 0.078
-	band.bottom_radius = 0.078
-	band.height = 0.035
+	band.top_radius = 0.032
+	band.bottom_radius = 0.032
+	band.height = 0.016
 	band.radial_segments = 10
-	_add_mesh(_stake, band, dark, Vector3(0.0, STAKE_HEIGHT - 0.16, 0.0))
+	_add_mesh(_stake, band, dark, Vector3(0.0, STAKE_HEIGHT - 0.07, 0.0))
 
 	var peg := CylinderMesh.new()
-	peg.top_radius = 0.035
-	peg.bottom_radius = 0.02
-	peg.height = 0.09
+	peg.top_radius = 0.014
+	peg.bottom_radius = 0.008
+	peg.height = 0.04
 	peg.radial_segments = 8
-	var peg_node := _add_mesh(_stake, peg, iron, Vector3(0.0, STAKE_HEIGHT - 0.24, 0.075))
+	var peg_node := _add_mesh(_stake, peg, iron, Vector3(0.0, STAKE_HEIGHT - 0.1, 0.03))
 	peg_node.rotation_degrees = Vector3(90.0, 0.0, 0.0)
 
 	_stake.scale = Vector3(1.0, 0.25, 1.0)
@@ -130,56 +133,39 @@ func _build_stake(up: Vector3) -> void:
 
 
 func _build_rope() -> void:
-	for segment: MeshInstance3D in _rope_segments:
-		segment.queue_free()
-	_rope_segments.clear()
-	var rope_material: StandardMaterial3D = _material(ROPE_COLOR, 0.88)
-	for _i: int in 2:
-		var segment := MeshInstance3D.new()
-		segment.name = "Rope"
-		var rope_mesh := CylinderMesh.new()
-		rope_mesh.top_radius = ROPE_RADIUS
-		rope_mesh.bottom_radius = ROPE_RADIUS
-		rope_mesh.height = 1.0
-		rope_mesh.radial_segments = 6
-		rope_mesh.rings = 1
-		segment.mesh = rope_mesh
-		segment.material_override = rope_material
-		segment.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(segment)
-		_rope_segments.append(segment)
+	if _rope != null:
+		_rope.queue_free()
+	_rope = MeshInstance3D.new()
+	_rope.name = "Rope"
+	var rope_mesh := CylinderMesh.new()
+	rope_mesh.top_radius = ROPE_RADIUS
+	rope_mesh.bottom_radius = ROPE_RADIUS
+	rope_mesh.height = 1.0
+	rope_mesh.radial_segments = 6
+	rope_mesh.rings = 1
+	_rope.mesh = rope_mesh
+	_rope.material_override = _material(ROPE_COLOR, 0.88)
+	_rope.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_rope)
 
 
 func _update_rope() -> void:
-	if not _planted or _rope_segments.is_empty() or player == null or planet == null:
+	if not _planted or _rope == null or player == null or planet == null:
 		return
 	var up: Vector3 = planet.get_center().direction_to(_anchor)
 	if up.length_squared() < 0.1:
 		up = Vector3.UP
-	var from: Vector3 = _anchor + up * (STAKE_HEIGHT - 0.16)
+	var from: Vector3 = _anchor + up * (STAKE_HEIGHT - STAKE_SINK - 0.04)
 	var to: Vector3 = player.global_position + player.get_up() * HAND_HEIGHT
 	var offset: Vector3 = to - from
 	var length: float = offset.length()
-	if length < 0.05:
-		for segment: MeshInstance3D in _rope_segments:
-			segment.visible = false
-		return
-	var slack: float = clampf(get_max_length() - length, 0.0, ROPE_SAG)
-	var middle: Vector3 = (from + to) * 0.5 - up * slack
-	_place_segment(_rope_segments[0], from, middle)
-	_place_segment(_rope_segments[1], middle, to)
-
-
-func _place_segment(segment: MeshInstance3D, from: Vector3, to: Vector3) -> void:
-	var offset: Vector3 = to - from
-	var length: float = offset.length()
-	segment.visible = length > 0.03
-	if not segment.visible:
+	_rope.visible = length > 0.03
+	if not _rope.visible:
 		return
 	var direction: Vector3 = offset / length
 	var basis := Basis(Quaternion(Vector3.UP, direction))
 	basis = basis.scaled(Vector3(1.0, length, 1.0))
-	segment.global_transform = Transform3D(basis, (from + to) * 0.5)
+	_rope.global_transform = Transform3D(basis, (from + to) * 0.5)
 
 
 func _material(color: Color, roughness: float) -> StandardMaterial3D:

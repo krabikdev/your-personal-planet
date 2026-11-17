@@ -31,11 +31,11 @@ position = Vector3(0, 1.75, 0)
 
 [node name="Key" type="Label3D" parent="CatchHint"]
 font = SubResource("SystemFont_hint")
-font_size = 160
+font_size = 110
 outline_size = 30
 modulate = Color(1, 0.88, 0.68, 1)
 outline_modulate = Color(0.13, 0.09, 0.11, 0.92)
-text = "E"
+text = "ЛКМ"
 pixel_size = 0.004
 billboard = 1
 no_depth_test = true

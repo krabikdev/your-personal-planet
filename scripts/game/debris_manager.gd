@@ -49,6 +49,7 @@ var _hint_shown: bool = false
 var _glow_texture: GradientTexture2D
 var _flight_altitude: float = FLIGHT_ALTITUDE
 var _appear: float = 0.0
+var _forced_size: float = 0.0
 var _mesh_material: StandardMaterial3D
 var _base_alpha: float = 1.0
 var _glow: Sprite3D
@@ -85,8 +86,9 @@ func _process(delta: float) -> void:
 			pass
 
 
-func force_spawn() -> void:
+func force_spawn(size_override: float = 0.0) -> void:
 	if _phase == Phase.IDLE:
+		_forced_size = size_override
 		_begin_event()
 
 
@@ -123,7 +125,8 @@ func _catch_with_net() -> void:
 
 func _begin_event() -> void:
 	_kind = StoneItem.Kind.ICE if randf() < 0.2 else StoneItem.Kind.ROCK
-	_size = randf_range(0.5, 1.5)
+	_size = _forced_size if _forced_size > 0.0 else randf_range(0.5, 1.5)
+	_forced_size = 0.0
 	_shape_seed = randi()
 	_target_dir = _random_flyby_direction()
 	var random_tangent := Vector3(

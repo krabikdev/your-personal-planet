@@ -10,7 +10,7 @@ const ACTIONS: Dictionary[String, Array] = {
 	"move_left": [KEY_A, KEY_LEFT],
 	"move_right": [KEY_D, KEY_RIGHT],
 	"jump": [KEY_SPACE],
-	"interact": [KEY_E],
+	"interact": [],
 	"inventory": [KEY_I],
 	"pause": [KEY_ESCAPE],
 }
@@ -18,15 +18,18 @@ const ACTIONS: Dictionary[String, Array] = {
 
 func _initialize() -> void:
 	for action: String in ACTIONS.keys():
-		var events: Array[InputEventKey] = []
+		var events: Array[InputEvent] = []
 		for key: Key in ACTIONS[action]:
 			var event := InputEventKey.new()
 			event.physical_keycode = key
 			event.device = -1
 			events.append(event)
-		ProjectSettings.set_setting(
-			"input/%s" % action, {"deadzone": 0.2, "events": events}
-		)
+		if action == "interact":
+			var click := InputEventMouseButton.new()
+			click.button_index = MOUSE_BUTTON_LEFT
+			click.device = -1
+			events.append(click)
+		ProjectSettings.set_setting("input/%s" % action, {"deadzone": 0.2, "events": events})
 	ProjectSettings.set_setting("gui/theme/custom", "res://ui/theme/app_theme.tres")
 	ProjectSettings.set_setting("rendering/anti_aliasing/quality/msaa_3d", 2)
 	ProjectSettings.set_setting("rendering/anti_aliasing/quality/screen_space_aa", 0)
