@@ -17,6 +17,8 @@ const SFX_PATHS: Dictionary[String, String] = {
 	"smear": "res://assets/audio/smear.wav",
 	"grow": "res://assets/audio/grow.wav",
 	"whoosh": "res://assets/audio/whoosh.wav",
+	"stake_plant": "res://assets/audio/stake_plant.wav",
+	"stake_pull": "res://assets/audio/stake_pull.wav",
 	"ping": "res://assets/audio/ping.wav",
 	"freeze": "res://assets/audio/freeze.wav",
 	"ui_click": "res://assets/audio/ui_click.wav",

@@ -18,6 +18,8 @@ const ROPE_CRAWL_SPEED: float = 1.35
 @export var turn_speed: float = 9.0
 @export var ground_acceleration: float = 26.0
 @export var air_acceleration: float = 8.0
+@export var rope_air_speed: float = 6.5
+@export var rope_air_acceleration: float = 30.0
 @export var coyote_time: float = 0.12
 @export var jump_buffer_time: float = 0.14
 @export var cold_seconds: float = 4.0
@@ -54,7 +56,9 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(80.0)
 	jumped.connect(_model.play_jump)
 	_model.footstepped.connect(_on_footstepped)
-	for key: String in ["footstep_1", "footstep_2", "jump", "land", "whoosh"]:
+	for key: String in [
+		"footstep_1", "footstep_2", "jump", "land", "whoosh", "stake_plant", "stake_pull"
+	]:
 		var stream: AudioStream = load("res://assets/audio/%s.wav" % key) as AudioStream
 		if stream != null:
 			_streams[key] = stream
@@ -94,7 +98,10 @@ func plant_stake() -> void:
 	if get_altitude() > 0.6:
 		return
 	_model.play_hammer_swing()
-	_play("land", -6.0, 0.05)
+	# Match the sound to the moment the mallet actually bites the soil.
+	var impact := create_tween()
+	impact.tween_interval(0.16)
+	impact.tween_callback(_play_stake_plant)
 	var up: Vector3 = get_up()
 	var right: Vector3 = _facing.cross(up).normalized()
 	var spot: Vector3 = _facing * 0.75 + right * 0.55
@@ -108,7 +115,7 @@ func remove_stake() -> void:
 	_rope_recoil = 0.0
 	_rope_brake_latch = false
 	rope.clear()
-	_play("whoosh", -7.0, 0.15)
+	_play("stake_pull", -3.0, 0.08)
 
 
 func snap_to_surface() -> void:
@@ -365,12 +372,18 @@ func _handle_movement(up: Vector3, delta: float) -> void:
 		(Input.is_action_pressed("run") or Input.is_key_pressed(KEY_SHIFT))
 		and input.length_squared() > 0.01
 	)
+	# Hanging from a planted stake turns the air into a fast, responsive glide.
+	var tethered_air: bool = rope != null and rope.is_planted() and not is_on_floor()
 	var target_speed: float = walk_speed * (run_multiplier if _running else 1.0)
+	if tethered_air:
+		target_speed = rope_air_speed * (run_multiplier if _running else 1.0)
 	if input.length_squared() > 0.01:
 		desired = (right * input.x - forward * input.y).normalized() * target_speed
 		_turn_toward(desired.normalized(), up, delta)
 	var tangent: Vector3 = velocity - up * velocity.dot(up)
 	var accel: float = ground_acceleration if is_on_floor() else air_acceleration
+	if tethered_air:
+		accel = rope_air_acceleration
 	tangent = tangent.move_toward(desired, accel * delta)
 	var radial: float = velocity.dot(up)
 	velocity = tangent + up * radial
@@ -440,6 +453,12 @@ func _update_cold(delta: float) -> void:
 		cold_changed.emit(_cold)
 	if _cold >= 1.0:
 		freeze()
+
+
+func _play_stake_plant() -> void:
+	if dead:
+		return
+	_play("stake_plant", -3.0, 0.06)
 
 
 func _play(key: String, extra_db: float, pitch_jitter: float) -> void:
