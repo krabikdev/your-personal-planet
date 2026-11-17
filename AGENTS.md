@@ -121,6 +121,62 @@ test under `tests/` (`extends GutTest`, file name `test_*.gd`).
 - Do not reformat or "fix" third-party addon code. `scripts/check.ps1` intentionally excludes
   `addons/`.
 
+## Collaboration — two humans, two agents, one repo
+
+Read [`docs/WORKFLOW.md`](docs/WORKFLOW.md) once per session. The owner (`krabikdev`) works on
+Windows, `putzwirk` works on Linux, and an AI agent runs on each machine. Assume the other machine
+is working **right now**.
+
+**`master` is protected.** Direct commits and pushes are rejected by GitHub. Land work through a
+branch and a pull request, never with `git push origin master`:
+
+```powershell
+# Windows
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sync.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\agent-ship.ps1 -Message "feat: ..."
+```
+
+```bash
+# Linux / macOS
+./scripts/sync.sh
+./scripts/agent-ship.sh "feat: ..."
+```
+
+`agent-ship` does the whole safe path in one step: checks → commit → rebase on newest `master` →
+push branch → open PR → squash-merge → pull `master` back down. Equivalent manual steps, if you
+need finer control:
+
+```bash
+git fetch origin && git switch -c agent/<topic> origin/master
+# ... work ...
+git add -A && git commit -m "feat: ..." && git fetch origin && git rebase origin/master
+git push -u origin HEAD
+gh pr create --base master --head agent/<topic> --fill
+gh pr merge --squash --delete-branch
+git switch master && git pull --ff-only
+```
+
+- **Board first.** Every idea, problem, question and decision lives on
+  https://github.com/users/krabikdev/projects/1 (`gh project item-list 1 --owner krabikdev`).
+  Read it before starting; write decisions back as issue comments.
+- **Claim before you build.** Comment on the card (`Claimed by <agent> on <machine>`), fill
+  *Claimed by*, move it to *In Progress*, and only then start. Never start a claimed card without
+  asking.
+- **Small, short-lived branches.** One feature per PR. Merge early; a branch older than a day is a
+  future conflict.
+- **Hot files** (`project.godot`, `scenes/game.tscn`, `ui/main_menu.tscn`,
+  `ui/theme/app_theme.tres`, the `scripts/*ship*` / `scripts/check.*` pipelines): announce on the
+  board before editing, and prefer new scenes/components over editing them.
+- **Conflicts are the agent's job.** Rebase, read both sides, keep both intentions, then
+  `git add` + `git rebase --continue`, re-run the checks, ship again. Never `git checkout --ours`
+  on a `.tscn`: nodes disappear silently. Never force-push `master`; only your own branch with
+  `--force-with-lease`.
+- **The check pipeline is the only reviewer.** Keep it green on both platforms — `check.ps1` on
+  Windows, `check.sh` on Linux. Run the one for the machine you are on, and do not merge red.
+- **Never rewrite history others may have.** No `filter-branch`, `rebase --root`, or `reset --hard`
+  on a shared branch.
+- Do not touch `.gitattributes` line-ending rules casually: the team mixes Windows and Linux.
+
 ## Commits
 
 - One feature per commit, imperative subject (`feat: add player dash`).

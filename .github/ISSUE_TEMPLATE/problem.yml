@@ -1,0 +1,49 @@
+name: Problem
+description: Something is broken, confusing or annoying
+title: "[Problem] "
+labels: ["problem"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe what you saw. An AI agent will read this card, reproduce it and fix it.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: Describe the problem in one or two sentences.
+      placeholder: The boy slides forever after jumping on a slope.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: Number the steps if you can.
+      placeholder: |
+        1. Walk to a steep slope
+        2. Jump
+        3. Land and stop pressing keys
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen instead
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Gameplay
+        - UI/UX
+        - Audio
+        - Visuals
+        - Performance
+        - Tooling
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes for the agent
+      description: Logs, screenshots, guesses about the cause.

@@ -1,18 +1,20 @@
-# Normalize text files to LF in the repository so Windows and CI agree, and so
-# git stops emitting a CRLF-conversion warning for every file on `git add`.
+# Line endings: store LF in the repository, check out LF everywhere.
+# Windows editors are expected to respect this; do not commit CRLF.
 * text=auto eol=lf
 
-# Binary assets — never touch their line endings.
+# Binary assets: never diff or merge them line by line.
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.webp binary
-*.svg text eol=lf
+*.svg text
+*.ogg binary
+*.wav binary
+*.mp3 binary
 *.ttf binary
 *.otf binary
-*.wav binary
-*.ogg binary
-*.mp3 binary
-*.zip binary
-*.dll binary
-*.pck binary
+*.glb binary
+*.gltf text
+*.blend binary
+*.exr binary
+*.hdr binary
