@@ -78,7 +78,7 @@ func _ready() -> void:
 	_hud.set_inventory_count(0)
 	_hud.show_intro()
 	_hud.fade_controls()
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 	_fade_tween = create_tween()
 	_fade_tween.tween_property(_fade_rect, "color:a", 0.0, 1.3)
@@ -183,7 +183,7 @@ func _on_inventory_closed() -> void:
 	_state = State.PLAYING
 	_hud.visible = true
 	_player.set_catch_hint(_debris.get_catch_available())
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _on_inventory_use(index: int) -> void:
@@ -335,7 +335,7 @@ func _on_pause_resume() -> void:
 	get_tree().paused = false
 	_state = State.PLAYING
 	_player.set_catch_hint(_debris.get_catch_available())
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _on_restart() -> void:

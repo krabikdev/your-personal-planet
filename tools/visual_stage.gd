@@ -44,7 +44,7 @@ func _setup() -> void:
 			debris.force_spawn()
 		"catch":
 			var catcher: DebrisManager = game.get_node("DebrisManager") as DebrisManager
-			catcher.force_spawn()
+			catcher.force_spawn(0.5)
 			await get_tree().create_timer(7.6).timeout
 			var planet: Planet = game.get_node("Planet") as Planet
 			var player: Boy = game.get_node("Player") as Boy
@@ -58,15 +58,15 @@ func _setup() -> void:
 				await get_tree().create_timer(0.05).timeout
 			print("CATCH WINDOW: ", catcher.get_catch_available())
 			await get_tree().create_timer(0.05).timeout
-			var press_e := InputEventKey.new()
-			press_e.physical_keycode = KEY_E
-			press_e.pressed = true
-			Input.parse_input_event(press_e)
+			var press_click := InputEventMouseButton.new()
+			press_click.button_index = MOUSE_BUTTON_LEFT
+			press_click.pressed = true
+			Input.parse_input_event(press_click)
 			await get_tree().create_timer(0.12).timeout
-			var release_e := InputEventKey.new()
-			release_e.physical_keycode = KEY_E
-			release_e.pressed = false
-			Input.parse_input_event(release_e)
+			var release_click := InputEventMouseButton.new()
+			release_click.button_index = MOUSE_BUTTON_LEFT
+			release_click.pressed = false
+			Input.parse_input_event(release_click)
 			await get_tree().create_timer(0.4).timeout
 			print("CATCH RESULT (bag size): ", game.get_inventory_model().size())
 		"look":
@@ -75,7 +75,7 @@ func _setup() -> void:
 			await get_tree().create_timer(0.6).timeout
 		"hint":
 			var hint_catcher: DebrisManager = game.get_node("DebrisManager") as DebrisManager
-			hint_catcher.force_spawn()
+			hint_catcher.force_spawn(0.5)
 			await get_tree().create_timer(7.6).timeout
 			var hint_planet: Planet = game.get_node("Planet") as Planet
 			var hint_player: Boy = game.get_node("Player") as Boy

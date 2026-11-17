@@ -197,7 +197,7 @@ func test_net_swing_raises_the_catch_point() -> void:
 	assert_false(player.is_net_active(), "the swing should end")
 
 
-func test_mouse_drag_rotates_the_camera() -> void:
+func test_mouse_motion_rotates_the_camera_without_clicking() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game
 	add_child_autofree(game)
@@ -205,6 +205,18 @@ func test_mouse_drag_rotates_the_camera() -> void:
 
 	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
 	var before: Vector3 = rig.get_tangent_forward(Vector3.UP)
-	rig.orbit_by(140.0)
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(160.0, 0.0)
+	rig._unhandled_input(motion)
 	var after: Vector3 = rig.get_tangent_forward(Vector3.UP)
-	assert_gt(before.angle_to(after), 0.1, "dragging should turn the view left or right")
+	assert_gt(before.angle_to(after), 0.1, "moving the mouse should turn the view left or right")
+
+
+func test_interact_is_mapped_to_the_left_mouse_button() -> void:
+	var found_click: bool = false
+	for event: InputEvent in InputMap.action_get_events("interact"):
+		if event is InputEventMouseButton:
+			var button := event as InputEventMouseButton
+			if button.button_index == MOUSE_BUTTON_LEFT:
+				found_click = true
+	assert_true(found_click, "the net swing should be on the left mouse button")

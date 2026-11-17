@@ -7,14 +7,13 @@ extends Node3D
 
 @export var base_lift: float = 3.0
 @export var base_distance: float = 3.4
-@export var drag_sensitivity: float = 0.005
+@export var mouse_sensitivity: float = 0.0025
 
 var _target: Node3D
 var _planet: Planet
 var _orbit: Vector3 = Vector3.ZERO
 var _heading: Vector3 = Vector3.FORWARD
 var _view_yaw: float = 0.0
-var _dragging: bool = false
 var _shake: float = 0.0
 var _intro: float = 1.0
 var _time: float = 0.0
@@ -49,7 +48,7 @@ func set_focus(value: float) -> void:
 
 
 func orbit_by(pixels: float) -> void:
-	_view_yaw = wrapf(_view_yaw - pixels * drag_sensitivity, -PI, PI)
+	_view_yaw = wrapf(_view_yaw - pixels * mouse_sensitivity, -PI, PI)
 
 
 func get_view_yaw() -> float:
@@ -72,24 +71,13 @@ func get_camera() -> Camera3D:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var button := event as InputEventMouseButton
-		if button.button_index == MOUSE_BUTTON_LEFT:
-			_dragging = button.pressed
-			Input.mouse_mode = (
-				Input.MOUSE_MODE_CAPTURED if _dragging else Input.MOUSE_MODE_VISIBLE
-			)
-	elif event is InputEventMouseMotion and _dragging:
-		var motion := event as InputEventMouseMotion
-		orbit_by(motion.relative.x)
+	if event is InputEventMouseMotion:
+		orbit_by((event as InputEventMouseMotion).relative.x)
 
 
 func _process(delta: float) -> void:
 	if _target == null or _planet == null:
 		return
-	if _dragging and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		_dragging = false
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_time += delta
 	_intro = move_toward(_intro, 0.0, delta * 0.55)
 	_shake = move_toward(_shake, 0.0, delta * 2.2)

@@ -117,7 +117,7 @@ size_flags_vertical = 3
 text = "Тут поки порожньо.
 
 Коли космічне сміття пролітатиме над тобою,
-натисни E — і воно опиниться в сумці."
+натисни ЛКМ — і воно опиниться в сумці."
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
