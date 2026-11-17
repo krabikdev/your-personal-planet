@@ -24,7 +24,7 @@ func _ready() -> void:
 func open(planet_radius: float, stones_used: int) -> void:
 	_overlay.visible = true
 	_stats_label.text = (
-		"Планета: %.1f × хлопчик у діаметрі\nВмазано каміння: %d"
+		"Планета: %.1f\nВмазано каміння: %d"
 		% [PlanetProfile.diameter_in_boys(planet_radius), stones_used]
 	)
 	_overlay.modulate.a = 0.0

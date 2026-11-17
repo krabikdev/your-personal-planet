@@ -96,6 +96,28 @@ func _setup() -> void:
 			var swinger: Boy = game.get_node("Player") as Boy
 			swinger.swing_net()
 			await get_tree().create_timer(0.34).timeout
+		"stake":
+			var stake_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			stake_rig.base_lift = 1.0
+			stake_rig.base_distance = 3.6
+			await get_tree().create_timer(0.4).timeout
+			var stabber: Boy = game.get_node("Player") as Boy
+			stabber.plant_stake()
+			await get_tree().create_timer(0.35).timeout
+		"rope":
+			var rope_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			rope_rig.base_lift = 1.4
+			rope_rig.base_distance = 7.2
+			await get_tree().create_timer(0.4).timeout
+			var anchored: Boy = game.get_node("Player") as Boy
+			anchored.plant_stake()
+			await get_tree().create_timer(0.3).timeout
+			anchored.global_position += anchored.get_up() * 4.0
+			await get_tree().create_timer(0.3).timeout
+		"debris_approach":
+			var approach: DebrisManager = game.get_node("DebrisManager") as DebrisManager
+			approach.force_spawn()
+			await get_tree().create_timer(7.0).timeout
 		"closeup":
 			var rig: CameraRig = game.get_node("CameraRig") as CameraRig
 			rig.base_lift = 1.1

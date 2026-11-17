@@ -38,7 +38,7 @@ func _on_inventory_pressed() -> void:
 
 
 func set_planet_stats(radius: float, gravity: float, jump_height: float, safe: bool) -> void:
-	_diameter_label.text = "Ø  %.1f × хлопчик" % PlanetProfile.diameter_in_boys(radius)
+	_diameter_label.text = "%.1f" % PlanetProfile.diameter_in_boys(radius)
 	_gravity_label.text = "Гравітація  %.1f" % gravity
 	_jump_label.text = "Стрибок  %.1f м" % jump_height
 	if safe:
@@ -137,5 +137,5 @@ func fade_controls() -> void:
 func _populate_controls() -> void:
 	_controls_label.text = (
 		"WASD  рух     ·     Shift  біг     ·     Пробіл  стрибок     ·     "
-		+ "E  сачок     ·     I  сумка     ·     Миша  поворот камери"
+		+ "Q  кілок     ·     E  сачок     ·     I  сумка     ·     Миша  поворот камери"
 	)

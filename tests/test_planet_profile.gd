@@ -50,12 +50,36 @@ func test_jump_height_falls_as_planet_grows() -> void:
 
 func test_there_is_a_safe_radius_and_it_is_reachable() -> void:
 	var safe: float = PlanetProfile.safe_radius()
-	assert_gt(safe, START_RADIUS + 1.0, "the planet must actually grow before it is safe")
-	assert_lt(safe, START_RADIUS * 2.0, "the safe threshold should be reachable in a session")
+	assert_gt(safe, START_RADIUS + 4.0, "the planet must actually grow before it is safe")
+	assert_lt(safe, START_RADIUS * 8.0, "the safe threshold should be reachable in a session")
 	assert_true(PlanetProfile.is_jump_safe(safe), "at the safe radius jumps must return")
 	assert_false(
 		PlanetProfile.is_jump_safe(safe - 0.4), "just below the threshold the boy can still escape"
 	)
+
+
+func test_jump_fades_slowly_and_settles_at_one_boy_height() -> void:
+	var start: float = PlanetProfile.jump_height(START_RADIUS)
+	var big: float = PlanetProfile.jump_height(START_RADIUS * 20.0)
+	assert_gt(big, 4.0, "a big planet should still allow a visibly high jump")
+	assert_gt(
+		PlanetProfile.jump_height(START_RADIUS * 10.0),
+		PlanetProfile.jump_height(START_RADIUS * 100.0),
+		"the jump must keep shrinking instead of freezing at one value"
+	)
+	assert_almost_eq(
+		PlanetProfile.jump_height(PlanetProfile.JUMP_END_RADIUS),
+		PlanetProfile.JUMP_MIN_HEIGHT,
+		0.01,
+		"the slow fall should settle on one boy height at planet size 1000"
+	)
+	assert_almost_eq(
+		PlanetProfile.jump_height(PlanetProfile.JUMP_END_RADIUS * 4.0),
+		PlanetProfile.JUMP_MIN_HEIGHT,
+		0.01,
+		"the jump never drops below one boy height"
+	)
+	assert_gt(start, big, "the boy still jumps highest on his tiny starting planet")
 
 
 func test_growth_is_large_at_first_then_diminishes() -> void:

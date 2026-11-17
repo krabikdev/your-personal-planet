@@ -11,6 +11,7 @@ const SUN_DIRECTION := Vector3(-0.42, 0.58, 0.36)
 var _model: InventoryModel = InventoryModel.new()
 var _state: State = State.PLAYING
 var _stones_used: int = 0
+var _rope: RopeAnchor
 var _frost_material: ShaderMaterial
 var _current_cold: float = 0.0
 var _was_safe_before_growth: bool = false
@@ -48,6 +49,13 @@ func _ready() -> void:
 	_camera_rig.setup(_player, _planet)
 	_camera_rig.play_intro()
 	_debris.setup(_planet, _player)
+	_rope = RopeAnchor.new()
+	_rope.name = "RopeAnchor"
+	add_child(_rope)
+	_rope.setup(_planet, _player)
+	_rope.planted.connect(_on_rope_planted)
+	_rope.snapped.connect(_on_rope_snapped)
+	_player.set_rope(_rope)
 
 	_player.cold_changed.connect(_on_cold_changed)
 	_player.froze.connect(_on_froze)
@@ -88,6 +96,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact") and _state == State.PLAYING:
 		_player.swing_net()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("plant") and _state == State.PLAYING:
+		_player.plant_stake()
 		get_viewport().set_input_as_handled()
 		return
 	if (
@@ -237,6 +249,17 @@ func _on_cold_changed(amount: float) -> void:
 func _on_player_landed(strength: float) -> void:
 	if strength > 0.7:
 		_camera_rig.add_shake(strength * 0.04)
+
+
+func _on_rope_planted() -> void:
+	_hud.show_toast("Кілок забито. Канат тримає тебе.", Color("cdb38d"), 3.0)
+
+
+func _on_rope_snapped(force: float) -> void:
+	if _state != State.PLAYING:
+		return
+	_camera_rig.add_shake(clampf(force * 0.02, 0.04, 0.26))
+	AudioDirector.play_sfx("whoosh", 0.18, -5.0)
 
 
 func _on_froze() -> void:
