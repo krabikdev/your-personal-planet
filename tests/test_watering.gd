@@ -10,11 +10,22 @@ func _make_game() -> Game:
 	return game
 
 
+## The bag only opens with both feet on the ground, so tests wait for the boy
+## to actually land on the little planet first.
+func _wait_for_ground(player: Boy) -> void:
+	for _i: int in 24:
+		if player.is_on_floor():
+			return
+		await wait_physics_frames(1)
+
+
 func test_ice_melts_into_the_watering_can() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(3)
 	var model: InventoryModel = game.get_inventory_model()
 	var planet: Planet = game.get_node("Planet") as Planet
+	var player: Boy = game.get_node("Player") as Boy
+	await _wait_for_ground(player)
 
 	game._on_skeleton_item_picked(StoneItem.Kind.WATERING_CAN)
 	game.debug_grant_stone(StoneItem.Kind.ICE, 1.2)
@@ -33,6 +44,8 @@ func test_ice_without_the_can_stays_in_the_bag() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(3)
 	var model: InventoryModel = game.get_inventory_model()
+	var player: Boy = game.get_node("Player") as Boy
+	await _wait_for_ground(player)
 
 	game.debug_grant_stone(StoneItem.Kind.ICE, 1.0)
 	game.debug_open_inventory()
