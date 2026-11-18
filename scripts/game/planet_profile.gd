@@ -6,6 +6,10 @@ extends RefCounted
 
 const BASE_RADIUS: float = 5.0
 const BASE_GRAVITY: float = 3.0
+## Gravity stops climbing here. Past this point a bigger world only looks
+## heavier: it must not turn the boy's jump into a drop and his landing into a
+## wall.
+const MAX_GRAVITY: float = 12.0
 const GRAVITY_EXPONENT: float = 1.6
 const JUMP_BASE_SPEED: float = 14.0
 const JUMP_MIN_HEIGHT: float = 1.0
@@ -19,7 +23,7 @@ const SAFE_MARGIN: float = 0.985
 
 static func surface_gravity(radius: float) -> float:
 	var r: float = clampf(radius, 1.0, MAX_RADIUS)
-	return BASE_GRAVITY * pow(r / BASE_RADIUS, GRAVITY_EXPONENT)
+	return minf(BASE_GRAVITY * pow(r / BASE_RADIUS, GRAVITY_EXPONENT), MAX_GRAVITY)
 
 
 static func gravity_at(radius: float, distance: float) -> float:
