@@ -44,6 +44,7 @@ var _points: PackedVector3Array = PackedVector3Array()
 var _previous: PackedVector3Array = PackedVector3Array()
 var _segment: float = 0.25
 var _shown: int = 0
+var _pending: float = 0.0
 
 
 func setup(p_planet: Planet, p_player: Boy) -> void:
@@ -63,6 +64,18 @@ func get_anchor_position() -> Vector3:
 
 func get_rope_points() -> PackedVector3Array:
 	return _points
+
+
+func debug_advance(seconds: float) -> void:
+	if not _planted or planet == null or player == null:
+		return
+	var step: float = 1.0 / 60.0
+	var from: Vector3 = _stake_top()
+	var to: Vector3 = _hand_point()
+	for _index: int in int(ceil(seconds / step)):
+		_spool(step, from, to)
+		_step(step, from, to)
+	_draw_rope()
 
 
 func get_max_length() -> float:
@@ -113,9 +126,16 @@ func _process(delta: float) -> void:
 	_rope.visible = true
 	if _points.size() < 4:
 		_reset_rope()
-	_spool(delta, from, to)
-	_step(minf(delta, 1.0 / 30.0), from, to)
-	_draw_rope()
+	var step: float = 1.0 / 60.0
+	_pending = minf(_pending + delta, step * 3.0)
+	var taken: int = 0
+	while _pending >= step and taken < 3:
+		_spool(step, from, to)
+		_step(step, from, to)
+		_pending -= step
+		taken += 1
+	if taken > 0:
+		_draw_rope()
 
 
 func _on_radius_changed(_new_radius: float) -> void:
@@ -215,6 +235,7 @@ func _reset_rope() -> void:
 	_points = _resample(path, count)
 	_previous = _points.duplicate()
 	_segment = maxf(_points[0].distance_to(_points[1]), 0.05)
+	_pending = 0.0
 	_draw_rope()
 
 

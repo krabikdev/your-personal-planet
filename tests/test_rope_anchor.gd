@@ -96,7 +96,7 @@ func test_holding_space_reels_the_boy_back_to_the_surface() -> void:
 	await wait_physics_frames(2)
 
 	Input.action_press("jump")
-	await get_tree().create_timer(2.8).timeout
+	await get_tree().create_timer(0.8).timeout
 	Input.action_release("jump")
 
 	assert_lt(player.get_altitude(), 0.6, "holding Space should crawl the boy back down the rope")
@@ -125,9 +125,9 @@ func test_space_slows_the_flight_instead_of_throwing_the_boy_back() -> void:
 	await get_tree().create_timer(0.5).timeout
 	assert_lt(player.velocity.dot(up), 1.0, "the winch should gradually eat the outward speed")
 
-	await get_tree().create_timer(1.2).timeout
+	await get_tree().create_timer(0.4).timeout
 	Input.action_release("jump")
-	assert_lt(player.get_altitude(), 4.6, "then it should start pulling him home")
+	assert_lt(player.velocity.dot(up), -0.5, "then it should start pulling him home")
 
 
 func test_a_rope_snap_does_not_play_the_flying_whoosh() -> void:
@@ -354,7 +354,8 @@ func test_the_rope_lies_on_the_ground_when_the_boy_walks_around_the_planet() -> 
 	var direction: Vector3 = up.rotated(axis.normalized(), 1.0)
 	player.global_position = centre + direction * (planet.radius + 0.3)
 	player.velocity = Vector3.ZERO
-	await wait_seconds(0.8)
+	await wait_physics_frames(2)
+	player.rope.debug_advance(0.8)
 
 	var points: PackedVector3Array = player.rope.get_rope_points()
 	assert_gt(points.size(), 6, "a rope laid over the curve needs several segments")
@@ -383,7 +384,8 @@ func test_the_rope_pulls_straight_when_the_boy_hangs_in_the_air() -> void:
 	var up: Vector3 = player.get_up()
 	player.global_position = planet.get_center() + up * (planet.radius + 6.0)
 	player.velocity = Vector3.ZERO
-	await wait_seconds(1.2)
+	await wait_physics_frames(1)
+	player.rope.debug_advance(1.2)
 
 	var points: PackedVector3Array = player.rope.get_rope_points()
 	assert_gte(points.size(), 4, "there should be a rope between the stake and the boy")
@@ -417,7 +419,7 @@ func test_the_rope_never_jumps_to_the_far_side_of_the_planet() -> void:
 		player.global_position = centre + direction * (planet.radius + 0.03)
 		player.velocity = Vector3.ZERO
 		await wait_physics_frames(2)
-	await wait_seconds(0.5)
+	player.rope.debug_advance(0.5)
 
 	var highest: float = -INF
 	var lowest: float = INF
@@ -470,10 +472,11 @@ func test_a_resting_rope_stays_where_it_was_laid() -> void:
 		axis = up.cross(Vector3.RIGHT)
 	player.global_position = centre + up.rotated(axis.normalized(), 0.5) * (planet.radius + 0.03)
 	player.velocity = Vector3.ZERO
-	await wait_seconds(1.0)
+	await wait_physics_frames(1)
+	player.rope.debug_advance(1.0)
 
 	var before: PackedVector3Array = player.rope.get_rope_points().duplicate()
-	await wait_seconds(0.6)
+	player.rope.debug_advance(0.6)
 	var after: PackedVector3Array = player.rope.get_rope_points()
 
 	assert_eq(before.size(), after.size(), "the rope should keep its shape")

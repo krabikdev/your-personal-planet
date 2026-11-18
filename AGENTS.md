@@ -94,7 +94,8 @@ This loop is not optional and applies to **every** change, in every session, on 
    `./scripts/sync.sh`. Never start from a stale `master`. If sync refuses because of unsaved
    work, ship that work (or stash it) first, then sync again.
 2. Make the change. Keep it small; add or update the GUT test that proves it.
-3. Run the check pipeline for your platform and fix every failure.
+3. Run the check pipeline for your platform — `--quick` while you work, the full run once before
+   shipping. See *Verification* below.
 4. **Ship.** `scripts\agent-ship.ps1 -Message "feat: ..."` or
    `./scripts/agent-ship.sh "feat: ..."`. It re-runs the checks, commits, rebases on the newest
    `master`, pushes, opens the pull request and squash-merges it.
@@ -104,26 +105,42 @@ Do not leave a change uncommitted, unmerged, or only on your machine. If a task 
 one green step, ship each step separately. A task is not done until `git status` is clean and
 `master` on GitHub contains the work.
 
-## Verification — mandatory
+## Verification — mandatory, and tiered
 
-After **every** change, run the full pipeline and fix every error before continuing:
+The pipeline is the only reviewer, and it is also the slowest thing in the loop. Run it in tiers:
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1
-```
+| When | Linux / macOS | Windows | Cost |
+| --- | --- | --- | --- |
+| After each edit | `./scripts/check.sh --quick` | `... -File scripts\check.ps1 -Quick` | ~3 s |
+| One area touched | `./scripts/check.sh --test rope` | `... -File scripts\check.ps1 -Test rope` | that file only |
+| Before shipping, or any change to scenes, `project.godot`, the check scripts | `./scripts/check.sh` | `... -File scripts\check.ps1` | full suite |
 
-(`pwsh scripts\check.ps1` if PowerShell 7 is ever installed — this machine currently has only
-Windows PowerShell 5.1, so the `powershell` form above is the one that works.)
-
-It runs, in order, and exits non-zero on any failure:
+Stages, in order, all of them failing the run:
 
 1. `gdformat --check` — formatting must be canonical (fix with `gdformat scripts ui tests scenes`)
 2. `gdlint` — static analysis
-3. headless project load — fails on any `ERROR` / `SCRIPT ERROR`
+3. headless project load — fails on any `ERROR` / `SCRIPT ERROR` (skipped by `--test` and `--quick`)
 4. GUT tests headless (`addons/gut`, tests in `res://tests`)
 
-Do not report a task as done while this script fails. If you add a feature, add or update a GUT
-test under `tests/` (`extends GutTest`, file name `test_*.gd`).
+Rules for using it:
+
+- Do **not** run the full suite after every edit, and never in a loop. It is a gate, not a linter.
+- Do not report a task as done while the full run fails.
+- `agent-ship` runs the full pipeline itself, so the last manual full run can be the one just
+  before it.
+
+Rules for the tests themselves:
+
+- **No test may sleep.** A test that waits on `create_timer` for more than ~0.5 s of wall time is
+  too slow; the suite is a gate people run often.
+- If something needs time to settle, add a `debug_*` hook on the node and step it directly
+  (`RopeAnchor.debug_advance`, `DebrisManager.debug_launch_now`) instead of waiting.
+- Prefer `wait_physics_frames(1..3)` over timers, and prefer calling the method under test over
+  watching an animation play out.
+- A test proves a rule, not a timeline. Test the endpoint through the API; do not re-run the whole
+  game for a minute to observe it.
+- Keep the full suite near ten seconds. If a new test would push it past that, make the test
+  cheaper or drop it.
 
 ## Docs and APIs
 
