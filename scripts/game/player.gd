@@ -20,6 +20,9 @@ const FOOTSTEP_PITCH_MIN: float = 0.05
 const FOOTSTEP_PITCH_MAX: float = 0.10
 const GROUND_STICK: float = 0.12
 const ROPE_STEER_PULL: float = 0.45
+const ROPE_ARRIVE: float = 1.2
+const ROPE_HANG_FADE: float = 2.0
+const ROPE_HANG_FLOOR: float = 0.4
 
 @export var walk_speed: float = 3.3
 @export var run_multiplier: float = 1.8
@@ -48,6 +51,7 @@ var _cold: float = 0.0
 var _running: bool = false
 var _rope_crawl: bool = false
 var _rope_brake_latch: bool = false
+var _rope_done: bool = false
 var _winch_active: bool = false
 var _streams: Dictionary[String, AudioStream] = {}
 
@@ -306,7 +310,8 @@ func _physics_process(delta: float) -> void:
 	_model.set_motion(get_speed_ratio(), grounded_now, _running, velocity.length(), velocity)
 	var hanging: bool = rope != null and rope.is_planted() and not grounded_now and _rope_crawl
 	if hanging:
-		_model.set_pull(rope.peek_reel_direction(), 1.0)
+		var hang: float = clampf((get_altitude() - ROPE_HANG_FLOOR) / ROPE_HANG_FADE, 0.0, 1.0)
+		_model.set_pull(rope.peek_reel_direction(), hang)
 	else:
 		_model.set_pull(Vector3.ZERO, 0.0)
 	_update_winch()
@@ -340,13 +345,12 @@ func _set_winch_playing(value: bool) -> void:
 func _rope_air_active() -> bool:
 	if rope == null or not rope.is_planted():
 		return false
-	if is_on_floor():
+	if not Input.is_action_pressed("jump") or is_on_floor():
 		_rope_crawl = false
 		_rope_brake_latch = false
+		_rope_done = false
 		return false
-	if not Input.is_action_pressed("jump"):
-		_rope_crawl = false
-		_rope_brake_latch = false
+	if _rope_done:
 		return false
 	if _rope_crawl:
 		return true
@@ -359,6 +363,16 @@ func _rope_air_active() -> bool:
 
 func _handle_rope_air(delta: float) -> void:
 	if rope == null:
+		return
+	# The winch stops pulling once the boy is back at the stake: from there the
+	# ground takes him, even with the key still held.
+	if (
+		get_altitude() < 0.3
+		or global_position.distance_to(rope.get_anchor_position()) <= ROPE_ARRIVE
+	):
+		_rope_done = true
+		_rope_crawl = false
+		_apply_gravity(get_up(), delta)
 		return
 	var home: Vector3 = rope.get_reel_direction()
 	if home.length_squared() < 0.0001:
