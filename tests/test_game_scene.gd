@@ -259,6 +259,35 @@ func test_the_net_reaches_farther_than_before() -> void:
 	assert_true(debris._try_catch(), "a net almost two metres away should still scoop the junk")
 
 
+func test_the_automatic_catch_swings_the_net_without_a_whoosh() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
+	debris.force_spawn(0.5)
+	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.2).timeout
+
+	assert_null(player._audio.stream, "the boy should not have made a sound yet")
+	var node: Node3D = debris.get_node("Debris") as Node3D
+	node.global_position = player.get_net_catch_point()
+	assert_true(debris._try_catch(), "the automatic catch should still work")
+	assert_ne(
+		player._audio.stream,
+		player._streams["whoosh"],
+		"an automatic catch must not play the flyby whoosh"
+	)
+
+	player.swing_net()
+	assert_eq(
+		player._audio.stream.resource_path,
+		"res://assets/audio/whoosh.wav",
+		"the player's own swing keeps its sound"
+	)
+
+
 func test_hud_planet_size_is_just_a_value() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game

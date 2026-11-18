@@ -207,11 +207,12 @@ func burst_dust() -> void:
 	_model.play_land_dust()
 
 
-func swing_net() -> void:
+func swing_net(with_sound: bool = true) -> void:
 	if dead or locked:
 		return
 	_model.play_net_swing()
-	_play("whoosh", -13.0, 0.12)
+	if with_sound:
+		_play("whoosh", -13.0, 0.12)
 
 
 func is_net_active() -> bool:
