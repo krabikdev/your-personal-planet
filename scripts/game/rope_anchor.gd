@@ -315,12 +315,8 @@ func _hand_point() -> Vector3:
 ## The winch pays line out quickly and reels it back slowly, so the chain always
 ## has just enough length to reach the boy plus a hand of slack to sag with.
 func _spool(delta: float, from: Vector3, to: Vector3) -> bool:
-	var centre: Vector3 = planet.get_center()
 	var straight: float = from.distance_to(to)
-	var rest: float = planet.radius + ROPE_CLEARANCE
-	var arc: float = (from - centre).normalized().angle_to((to - centre).normalized()) * rest
-	var rise: float = maxf((to - centre).length() - rest, 0.0)
-	var target: float = maxf(arc + rise + ROPE_SLACK, straight + 0.01)
+	var target: float = maxf(_path_length(from, to) + ROPE_SLACK, straight + 0.01)
 	target = clampf(target, 0.3, get_max_length())
 	_fit_count(target)
 	var wanted: float = target / float(_points.size() - 1)
@@ -333,6 +329,26 @@ func _spool(delta: float, from: Vector3, to: Vector3) -> bool:
 ## One position-based step: gravity, then the chain is pulled back to its
 ## segment length against the planet, and the ground drags on whatever touches
 ## it. Friction is what stops the rope from skating across the world.
+## The length of the shortest cord that actually fits: a straight line while
+## that line clears the planet, and otherwise the ground arc plus the tangent
+## up to the hand. Handing it the arc plus the rise even when he is right next
+## to the stake is what used to leave a short rope bulging.
+func _path_length(from: Vector3, to: Vector3) -> float:
+	var centre: Vector3 = planet.get_center()
+	var rest: float = planet.radius + ROPE_CLEARANCE
+	var from_dir: Vector3 = (from - centre).normalized()
+	var to_dir: Vector3 = (to - centre).normalized()
+	var reach: float = (to - centre).length()
+	var angle: float = from_dir.angle_to(to_dir)
+	var theta: float = angle
+	if reach > rest + 0.0005:
+		theta = acos(clampf(rest / reach, 0.0, 1.0))
+	if angle < 0.0005 or theta >= angle:
+		return from.distance_to(to)
+	var drop: float = maxf((from - centre).length() - rest, 0.0)
+	return drop + rest * (angle - theta) + sqrt(maxf(reach * reach - rest * rest, 0.0))
+
+
 ## A chain whose masses sit centimetres apart cannot follow a hand that moves
 ## faster than they do: the pin jumps past them and the cord folds. Short ropes
 ## therefore get fewer, longer links, and only a change of a quarter in the

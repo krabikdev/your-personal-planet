@@ -574,3 +574,30 @@ func test_the_winch_follows_the_rope_instead_of_the_straight_line() -> void:
 		-speed * 0.5,
 		"the winch should wind the boy down the hanging rope, not along a straight line to the stake"
 	)
+
+
+func test_the_rope_stays_short_and_taut_next_to_the_stake() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(1)
+
+	var player: Boy = game.get_node("Player") as Boy
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var anchor: Vector3 = player.rope.get_anchor_position()
+	var up: Vector3 = player.get_up()
+	var away: Vector3 = player.global_position - anchor
+	away -= up * away.dot(up)
+	player.global_position = anchor + away.normalized() * 0.8 + up * 0.04
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(1)
+	player.rope.debug_advance(0.6)
+
+	var points: PackedVector3Array = player.rope.get_rope_points()
+	var start: Vector3 = points[0]
+	var finish: Vector3 = points[points.size() - 1]
+	var bulge: float = 0.0
+	for point: Vector3 in points:
+		var closest: Vector3 = Geometry3D.get_closest_point_to_segment(point, start, finish)
+		bulge = maxf(bulge, point.distance_to(closest))
+	assert_lt(bulge, 0.12, "next to the stake the rope should be short and taut, not bulging")
