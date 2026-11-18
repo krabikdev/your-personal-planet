@@ -3,11 +3,9 @@ extends Node3D
 
 ## Schedules the slow parade of space junk. Every flyby happens over a random
 ## side of the planet, not over the boy. The catch is automatic: when the boy's
-## net reaches the junk, it is scooped up without pressing anything. The first
-## warning is a one-time tutorial: after that the player has to watch the sky
-## without HUD hints.
+## net reaches the junk, it is scooped up without pressing anything. There is
+## no hint and no flight sound: the player has to watch the sky.
 
-signal warning_started(kind: int, size_factor: float)
 signal warning_cleared
 signal catch_window_changed(available: bool)
 signal caught(kind: int, size_factor: float, shape_seed: int)
@@ -36,7 +34,7 @@ var _phase: Phase = Phase.IDLE
 var _countdown: float = 40.0
 var _warning_timer: float = 0.0
 var _along: float = 0.0
-var _speed: float = 9.0
+var _speed: float = 1.75
 var _kind: int = StoneItem.Kind.ROCK
 var _size: float = 1.0
 var _shape_seed: int = 0
@@ -48,7 +46,6 @@ var _trail: GPUParticles3D
 var _spin_axis: Vector3 = Vector3.UP
 var _spin_speed: float = 1.0
 var _can_catch: bool = false
-var _hint_shown: bool = false
 var _glow_texture: GradientTexture2D
 var _flight_altitude: float = FLIGHT_ALTITUDE
 var _appear: float = 0.0
@@ -113,6 +110,16 @@ func debug_closest_point() -> Vector3:
 	return _surface_point(0.0)
 
 
+func debug_place_at(along: float = 0.0) -> void:
+	# Development helper: skip the long slow approach for screenshots.
+	if _phase != Phase.FLYING or _debris == null:
+		return
+	_along = along
+	_debris.global_position = _surface_point(_along)
+	if _trail != null:
+		_trail.global_position = _surface_point(_along)
+
+
 func _catch_with_net() -> void:
 	if _phase != Phase.FLYING:
 		return
@@ -146,7 +153,7 @@ func _begin_event() -> void:
 	_along = -HALF_LENGTH
 	# Slow drift: the catch has to be read from the debris itself, since there
 	# is no marker on the ground any more.
-	_speed = randf_range(2.8, 4.2)
+	_speed = randf_range(1.4, 2.1)
 	_flight_altitude = _altitude_for_size(_size)
 	_appear = 0.0
 	_growth = 0.0
@@ -156,10 +163,6 @@ func _begin_event() -> void:
 	if _trail != null:
 		_trail.emitting = false
 	_apply_visuals()
-	if not _hint_shown:
-		_hint_shown = true
-		warning_started.emit(_kind, _size)
-		AudioDirector.play_sfx("ping", 0.0, -4.0)
 
 
 func _random_flyby_direction() -> Vector3:

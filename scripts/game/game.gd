@@ -16,13 +16,13 @@ var _frost_material: ShaderMaterial
 var _was_safe_before_growth: bool = false
 var _fade_tween: Tween
 var _frost_tween: Tween
-var _debris_hints_available: bool = true
 
 @onready var _planet: Planet = $Planet
 @onready var _player: Boy = $Player
 @onready var _camera_rig: CameraRig = $CameraRig
 @onready var _debris: DebrisManager = $DebrisManager
 @onready var _skeleton: SkeletonProp = $Skeleton
+@onready var _far_side: FarSideSpawner = $FarSideSpawner
 @onready var _hud: GameHUD = $GameHud
 @onready var _inventory_ui: InventoryUI = $Inventory
 @onready var _game_over: GameOverUI = $GameOver
@@ -59,13 +59,12 @@ func _ready() -> void:
 	_player.set_rope(_rope)
 	_skeleton.setup(_planet, _player)
 	_skeleton.item_picked.connect(_on_skeleton_item_picked)
+	_far_side.setup(_planet, _player)
 
 	_player.cold_changed.connect(_on_cold_changed)
 	_player.froze.connect(_on_froze)
 	_player.landed.connect(_on_player_landed)
 	_planet.growth_finished.connect(_on_growth_finished)
-	_debris.warning_started.connect(_on_warning_started)
-	_debris.warning_cleared.connect(_on_warning_cleared)
 	_debris.catch_window_changed.connect(_on_catch_window_changed)
 	_debris.caught.connect(_on_debris_caught)
 	_debris.missed.connect(_on_debris_missed)
@@ -91,6 +90,7 @@ func _process(_delta: float) -> void:
 	if _camera_rig.get_camera() == null:
 		return
 	_headlight.global_transform.basis = _camera_rig.get_camera().global_transform.basis
+	_camera_rig.set_sky_view(_state == State.PLAYING and Input.is_action_pressed("sky_view"))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -217,7 +217,6 @@ func _start_apply(stone: StoneItem) -> void:
 	_was_safe_before_growth = _planet.is_jump_safe()
 	_hud.set_inventory_count(_model.size())
 	_player.set_catch_hint(false)
-	_hud.hide_warning()
 	_player.start_smearing()
 	_camera_rig.set_focus(1.55)
 	AudioDirector.play_sfx("smear", 0.0, 0.5)
@@ -308,16 +307,6 @@ func _set_frost_progress(value: float) -> void:
 		_frost_material.set_shader_parameter("progress", clampf(value, 0.0, 1.0))
 
 
-func _on_warning_started(kind: int, _size_factor: float) -> void:
-	_hud.show_warning(kind)
-
-
-func _on_warning_cleared() -> void:
-	_hud.hide_warning()
-	# The first flyby is a tutorial; later ones stay quiet.
-	_debris_hints_available = false
-
-
 func _on_catch_window_changed(available: bool) -> void:
 	if _state != State.PLAYING:
 		_player.set_catch_hint(false)
@@ -339,8 +328,6 @@ func _on_debris_caught(kind: int, size_factor: float, shape_seed: int) -> void:
 
 func _on_debris_missed() -> void:
 	_player.set_catch_hint(false)
-	if _debris_hints_available:
-		_hud.show_toast("Воно пролетіло повз...", Color("b9a9b8"), 2.0)
 
 
 func _open_pause() -> void:
