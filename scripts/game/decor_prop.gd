@@ -6,6 +6,8 @@ extends Node3D
 ## prop is built from primitives, so the game needs no new assets. A prop never
 ## changes its own size: when the planet grows it only rides the surface.
 
+signal acid_hit
+
 enum Kind { GRASS, BUSH, SAPLING, TREE, BIG_TREE, MONSTER }
 
 const MONSTER_WANDER_RADIUS: float = 0.38
@@ -13,6 +15,7 @@ const MONSTER_WANDER_SPEED: float = 0.9
 
 var kind: int = Kind.GRASS
 var anchor_dir: Vector3 = Vector3.UP
+var monster_level: int = 1
 
 var _seed: int = 0
 var _rng: RandomNumberGenerator
@@ -21,9 +24,10 @@ var _visual: Node3D
 var _body: Node3D
 
 
-func setup(p_kind: int, p_seed: int) -> void:
+func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
 	kind = p_kind
 	_seed = p_seed
+	monster_level = clampi(p_level, 1, 4)
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = _seed
 	_visual = Node3D.new()
@@ -46,6 +50,8 @@ func setup(p_kind: int, p_seed: int) -> void:
 		_:
 			_build_monster()
 	set_process(kind == Kind.MONSTER)
+	if kind == Kind.MONSTER:
+		add_to_group("monsters")
 	# A soft pop-in makes a new arrival readable without moving the prop itself.
 	_visual.scale = Vector3.ONE * 0.12
 	var pop := create_tween()
@@ -56,6 +62,12 @@ func setup(p_kind: int, p_seed: int) -> void:
 
 func is_monster() -> bool:
 	return kind == Kind.MONSTER
+
+
+## One blob of acid is enough: the monster dissolves and leaves the garden.
+func hit_by_acid() -> void:
+	acid_hit.emit()
+	queue_free()
 
 
 func _process(delta: float) -> void:

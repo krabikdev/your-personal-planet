@@ -3,7 +3,7 @@ extends RefCounted
 
 ## One piece of space debris that has been caught and now sits in the bag.
 
-enum Kind { ROCK, ICE, WATERING_CAN, POUCH }
+enum Kind { ROCK, ICE, WATERING_CAN }
 
 var kind: Kind
 var size_factor: float
@@ -26,8 +26,6 @@ func display_name() -> String:
 			return "Лід"
 		Kind.WATERING_CAN:
 			return "Поливалка"
-		Kind.POUCH:
-			return "Мішечок"
 		_:
 			return "Камінь"
 
@@ -48,13 +46,18 @@ func is_ice() -> bool:
 	return kind == Kind.ICE
 
 
+## Ice no longer feeds the planet: it melts into that much water for the can.
+func melt_value() -> float:
+	if not is_ice():
+		return 0.0
+	return size_factor
+
+
 func accent_color() -> Color:
 	match kind:
 		Kind.ICE:
 			return Color("a9d7d6")
 		Kind.WATERING_CAN:
 			return Color("93b4a8")
-		Kind.POUCH:
-			return Color("c7a87a")
 		_:
 			return Color("d8a184")

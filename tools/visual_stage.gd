@@ -37,7 +37,6 @@ func _setup() -> void:
 			game.debug_open_inventory()
 		"inventory_finds":
 			game.debug_grant_stone(StoneItem.Kind.WATERING_CAN, 1.0)
-			game.debug_grant_stone(StoneItem.Kind.POUCH, 1.0)
 			game.debug_open_inventory()
 		"smear":
 			game.debug_grant_stone(StoneItem.Kind.ROCK, 1.5)

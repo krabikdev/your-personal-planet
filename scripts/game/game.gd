@@ -10,11 +10,15 @@ const SUN_DIRECTION := Vector3(-0.42, 0.58, 0.36)
 const DEBUG_PANEL_SCENE: PackedScene = preload("res://ui/debug_panel.tscn")
 ## The smear used to sit at +0.5 dB; -5.5 dB is roughly half the loudness.
 const SMEAR_DB: float = -5.5
+## The can pours one unit of water each second; one unit is one ice of the same
+## size, so the can is refilled by melting what the net catches.
+const WATER_RATE: float = 1.0
 
 var _model: InventoryModel = InventoryModel.new()
 var _state: State = State.PLAYING
 var _stones_used: int = 0
 var _rope: RopeAnchor
+var _garden: Garden
 var _debug_panel: DebugPanel
 var _frost_material: ShaderMaterial
 var _was_safe_before_growth: bool = false
@@ -61,6 +65,10 @@ func _ready() -> void:
 	_rope.removed.connect(_on_rope_removed)
 	_rope.snapped.connect(_on_rope_snapped)
 	_player.set_rope(_rope)
+	_garden = Garden.new()
+	_garden.name = "Garden"
+	add_child(_garden)
+	_garden.setup(_planet)
 	_skeleton.setup(_planet, _player)
 	_skeleton.item_picked.connect(_on_skeleton_item_picked)
 	_far_side.setup(_planet, _player)
@@ -84,6 +92,7 @@ func _ready() -> void:
 
 	_update_stats()
 	_hud.set_inventory_count(0)
+	_refresh_water()
 	_hud.fade_controls()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -92,22 +101,53 @@ func _ready() -> void:
 	_fade_tween.tween_callback(func() -> void: _fade_rect.visible = false)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _debug_panel != null and _debug_panel.is_open():
 		_refresh_debug_panel()
+	_update_watering(delta)
 	if _camera_rig.get_camera() == null:
 		return
 	_headlight.global_transform.basis = _camera_rig.get_camera().global_transform.basis
 	_camera_rig.set_sky_view(_state == State.PLAYING and Input.is_action_pressed("sky_view"))
 
 
+## Holding the left button on the ground pours the can into the patch in front
+## of the boy's feet. The pour is silent; it is the water the player watches.
+func _update_watering(delta: float) -> void:
+	var pouring: bool = (
+		_state == State.PLAYING
+		and not _player.dead
+		and not _player.locked
+		and _player.is_on_floor()
+		and _can_water()
+		and Input.is_action_pressed("interact")
+	)
+	if not pouring:
+		_player.set_watering(false)
+		return
+	_player.set_watering(true)
+	var spent: float = _model.spend_water(WATER_RATE * delta)
+	if spent > 0.0:
+		_garden.pour(_player.get_water_target(), spent)
+		_refresh_water()
+
+
+func _can_water() -> bool:
+	return _model.has_watering_can() and _model.water > 0.0
+
+
+func _refresh_water() -> void:
+	_hud.set_water(_model.water, _model.has_watering_can())
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _state == State.DEAD:
 		return
 	if event.is_action_pressed("interact") and _state == State.PLAYING:
-		if _player.is_on_floor():
+		# With water in the can the button pours; without it the net still swings.
+		if not _can_water() and _player.is_on_floor():
 			_player.swing_net()
-			get_viewport().set_input_as_handled()
+		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("stake") and _state == State.PLAYING:
 		if not _rope.is_planted():
@@ -241,7 +281,7 @@ func _toggle_inventory() -> void:
 		_hud.show_toast("Сумку можна відкрити лише на землі.", Color("d9cbb8"), 2.0)
 		return
 	_state = State.INVENTORY
-	_inventory_ui.open(_model.items, _planet.radius)
+	_inventory_ui.open(_model.items, _planet.radius, _model.water)
 	_hud.visible = false
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -262,17 +302,40 @@ func _on_inventory_use(index: int) -> void:
 	if index < 0 or index >= _model.items.size():
 		return
 	var stone: StoneItem = _model.items[index]
-	if stone == null or not stone.is_stone():
+	if stone == null:
+		return
+	if stone.is_ice():
+		_melt_ice(index)
+		return
+	if not stone.is_stone():
 		return
 	_model.remove_at(index)
 	_inventory_ui.close()
 	_start_apply(stone)
 
 
+## Ice is no longer smeared into the ground: it melts into the watering can.
+func _melt_ice(index: int) -> void:
+	if not _model.has_watering_can():
+		_inventory_ui.close()
+		_hud.show_toast("Спочатку знайди поливалку біля старого скелета.", Color("a9d7d6"), 3.4)
+		return
+	var ice: StoneItem = _model.remove_at(index)
+	if ice == null:
+		return
+	_inventory_ui.close()
+	_model.add_water(ice.melt_value())
+	_hud.set_inventory_count(_model.size())
+	_refresh_water()
+	AudioDirector.play_sfx("catch", 0.0, -8.0)
+	_hud.show_toast("Крига тане у поливалці: %.1f води" % _model.water, Color("a9d7d6"), 3.2)
+
+
 func _on_skeleton_item_picked(kind: int) -> void:
 	var item: StoneItem = StoneItem.new(kind, 1.0, 0)
 	_model.add(item)
 	_hud.set_inventory_count(_model.size())
+	_refresh_water()
 	_hud.show_toast("У сумці: %s" % item.display_name(), Color("d9cbb8"), 2.6)
 
 
@@ -284,8 +347,7 @@ func _start_apply(stone: StoneItem) -> void:
 	_player.start_smearing()
 	_camera_rig.set_focus(1.55)
 	AudioDirector.play_sfx("smear", 0.0, SMEAR_DB)
-	var material_name: String = "кригу" if stone.is_ice() else "камінь"
-	_hud.show_toast("Ти вмазуєш %s у землю..." % material_name, Color("d9cbb8"), 2.6)
+	_hud.show_toast("Ти вмазуєш камінь у землю...", Color("d9cbb8"), 2.6)
 	await get_tree().create_timer(3.0).timeout
 	if _state != State.APPLYING:
 		return
@@ -417,6 +479,21 @@ func debug_grant_stone(kind: int = StoneItem.Kind.ROCK, size_factor: float = 1.0
 	var stone := StoneItem.new(kind, size_factor, randi())
 	_model.add(stone)
 	_hud.set_inventory_count(_model.size())
+	_refresh_water()
+
+
+func debug_grant_water(amount: float) -> void:
+	_model.add_water(amount)
+	_refresh_water()
+
+
+func debug_melt_ice(index: int) -> void:
+	if _state == State.INVENTORY:
+		_melt_ice(index)
+
+
+func get_garden() -> Garden:
+	return _garden
 
 
 func debug_open_inventory() -> void:

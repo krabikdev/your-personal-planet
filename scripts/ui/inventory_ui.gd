@@ -10,6 +10,7 @@ signal closed
 var _items: Array[StoneItem] = []
 var _selected: int = -1
 var _planet_radius: float = PlanetProfile.BASE_RADIUS
+var _water: float = 0.0
 var _group: ButtonGroup
 var _cards: Array[Button] = []
 
@@ -36,11 +37,12 @@ func _ready() -> void:
 	_use_button.disabled = true
 
 
-func open(items: Array[StoneItem], planet_radius: float) -> void:
+func open(items: Array[StoneItem], planet_radius: float, water: float = 0.0) -> void:
 	_items.clear()
 	for item: StoneItem in items:
 		_items.append(item)
 	_planet_radius = planet_radius
+	_water = maxf(water, 0.0)
 	_selected = 0 if not _items.is_empty() else -1
 	_populate()
 	_refresh()
@@ -117,7 +119,9 @@ func _make_card(item: StoneItem, index: int) -> Button:
 	vbox.add_child(name_label)
 
 	var size_label := Label.new()
-	if item.is_stone():
+	if item.kind == StoneItem.Kind.WATERING_CAN:
+		size_label.text = "%.1f води" % _water
+	elif item.is_stone():
 		size_label.text = "%.1f ×" % item.size_factor
 	else:
 		size_label.text = item.size_label()
@@ -165,33 +169,31 @@ func _refresh_details() -> void:
 	if not item.is_stone():
 		_item_name.text = item.display_name()
 		_item_size.text = "Знахідка біля старого скелета"
-		_item_growth.text = ""
-		if item.kind == StoneItem.Kind.WATERING_CAN:
-			_item_flavor.text = (
-				"Іржава поливалка з давньої подорожі. "
-				+ "Пахне металом і дощем, якого на цій планеті не буває."
-			)
-		else:
-			_item_flavor.text = (
-				"Мішечок із грубої тканини, затягнутий мотузкою. "
-				+ "Усередині лише пил і кілька крихт чогось давно з'їденого."
-			)
+		_item_growth.text = "У поливалці  %.1f води" % _water
+		_item_flavor.text = (
+			"Іржава поливалка з давньої подорожі. "
+			+ "Розтопи в ній лід — і вода поллє землю перед тобою."
+		)
+		_use_button.text = "Поливалка"
 		_use_button.disabled = true
 		return
 	_item_name.text = "%s з орбіти" % item.display_name()
 	_item_size.text = "%.1f × зросту хлопчика" % item.size_factor
-	var growth: float = PlanetProfile.growth_for_stone(_planet_radius, item.size_factor)
-	_item_growth.text = "Додасть планеті +%.1f м радіуса" % growth
 	if item.is_ice():
+		_item_growth.text = "Розтопиться у %.1f води" % item.melt_value()
 		_item_flavor.text = (
 			"Крига, що пам'ятає холод порожнечі. "
-			+ "Пальці ломить, але вона гарна — як скло далекої зорі."
+			+ "У поливалці вона стане водою — вода ростить те, що не росте камінь."
 		)
+		_use_button.text = "Розтопити"
 	else:
+		var growth: float = PlanetProfile.growth_for_stone(_planet_radius, item.size_factor)
+		_item_growth.text = "Додасть планеті +%.1f м радіуса" % growth
 		_item_flavor.text = (
 			"Теплий камінь з орбіти. Пахне пилом і далекими мандрами. "
 			+ "Його можна вмазати в землю — і планета стане трохи більшою."
 		)
+		_use_button.text = "Вмазати"
 	_use_button.disabled = false
 
 

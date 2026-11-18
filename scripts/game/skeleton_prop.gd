@@ -2,9 +2,9 @@ class_name SkeletonProp
 extends Node3D
 
 ## The old traveller's remains near the boy's landing spot. A rusty watering
-## can and a small pouch lie by the skeleton's hands; walking up to them tucks
-## them into the bag. As the planet grows, the ground creeps up over the bones
-## and slowly swallows them where they lie.
+## can lies by the skeleton's hands; walking up to it tucks it into the bag.
+## As the planet grows, the ground creeps up over the bones and slowly swallows
+## them where they lie.
 
 signal item_picked(kind: int)
 
@@ -19,8 +19,6 @@ const BONE_COLOR := Color("e2dcc8")
 const JOINT_COLOR := Color("c6bea6")
 const CAN_COLOR := Color("7f9a90")
 const RUST_COLOR := Color("8a5a3b")
-const POUCH_COLOR := Color("8a6a45")
-const CORD_COLOR := Color("5a4630")
 
 var planet: Planet
 var player: Boy
@@ -28,9 +26,7 @@ var player: Boy
 var _origin_distance: float = 5.0
 var _ground_dir: Vector3 = Vector3.UP
 var _can: Node3D
-var _pouch: Node3D
 var _can_picked: bool = false
-var _pouch_picked: bool = false
 var _buried: bool = false
 
 
@@ -65,16 +61,8 @@ func has_can() -> bool:
 	return not _can_picked
 
 
-func has_pouch() -> bool:
-	return not _pouch_picked
-
-
 func get_can_position() -> Vector3:
 	return _can.global_position if _can != null else global_position
-
-
-func get_pouch_position() -> Vector3:
-	return _pouch.global_position if _pouch != null else global_position
 
 
 func _process(_delta: float) -> void:
@@ -89,15 +77,6 @@ func _process(_delta: float) -> void:
 		_can.visible = false
 		AudioDirector.play_sfx("ui_click", 0.05, -5.0)
 		item_picked.emit(StoneItem.Kind.WATERING_CAN)
-	if (
-		not _pouch_picked
-		and _pouch != null
-		and player.global_position.distance_to(_pouch.global_position) < PICKUP_RADIUS
-	):
-		_pouch_picked = true
-		_pouch.visible = false
-		AudioDirector.play_sfx("ui_click", 0.05, -5.0)
-		item_picked.emit(StoneItem.Kind.POUCH)
 
 
 func _on_radius_changed(new_radius: float) -> void:
@@ -122,8 +101,6 @@ func _build() -> void:
 	var joint: StandardMaterial3D = _material(JOINT_COLOR, 0.92, 0.0)
 	var can_metal: StandardMaterial3D = _material(CAN_COLOR, 0.38, 0.65)
 	var rust: StandardMaterial3D = _material(RUST_COLOR, 0.92, 0.1)
-	var cloth: StandardMaterial3D = _material(POUCH_COLOR, 0.95, 0.0)
-	var cord: StandardMaterial3D = _material(CORD_COLOR, 0.9, 0.0)
 
 	_build_skull(bone, joint)
 	_build_spine(bone, joint)
@@ -137,13 +114,6 @@ func _build() -> void:
 	_can.rotation_degrees = Vector3(0.0, 18.0, 9.0)
 	add_child(_can)
 	_build_can(_can, can_metal, rust)
-
-	_pouch = Node3D.new()
-	_pouch.name = "Pouch"
-	_pouch.position = Vector3(-0.12, 0.0, -0.7)
-	_pouch.rotation_degrees = Vector3(0.0, -20.0, 0.0)
-	add_child(_pouch)
-	_build_pouch(_pouch, cloth, cord)
 
 
 func _build_skull(bone: StandardMaterial3D, joint: StandardMaterial3D) -> void:
@@ -282,39 +252,6 @@ func _build_can(parent: Node3D, metal: StandardMaterial3D, rust: StandardMateria
 	handle.ring_segments = 6
 	var handle_node := _add_mesh(parent, handle, metal, Vector3(-0.09, 0.25, 0.0), Vector3.ONE)
 	handle_node.rotation_degrees = Vector3(90.0, 0.0, 0.0)
-
-
-func _build_pouch(parent: Node3D, cloth: StandardMaterial3D, cord: StandardMaterial3D) -> void:
-	var bag := SphereMesh.new()
-	bag.radius = 0.15
-	bag.height = 0.24
-	bag.radial_segments = 12
-	bag.rings = 6
-	_add_mesh(parent, bag, cloth, Vector3(0.0, 0.1, 0.0), Vector3(1.0, 0.8, 1.0))
-
-	var neck := CylinderMesh.new()
-	neck.top_radius = 0.055
-	neck.bottom_radius = 0.085
-	neck.height = 0.07
-	neck.radial_segments = 10
-	neck.rings = 1
-	_add_mesh(parent, neck, cloth, Vector3(0.0, 0.2, 0.0), Vector3.ONE)
-
-	var tie := TorusMesh.new()
-	tie.inner_radius = 0.055
-	tie.outer_radius = 0.072
-	tie.rings = 10
-	tie.ring_segments = 5
-	_add_mesh(parent, tie, cord, Vector3(0.0, 0.225, 0.0), Vector3.ONE)
-
-	var string := CylinderMesh.new()
-	string.top_radius = 0.007
-	string.bottom_radius = 0.007
-	string.height = 0.13
-	string.radial_segments = 5
-	string.rings = 1
-	var string_node := _add_mesh(parent, string, cord, Vector3(0.08, 0.29, 0.02), Vector3.ONE)
-	string_node.rotation_degrees = Vector3(0.0, 0.0, 22.0)
 
 
 func _bone(from: Vector3, to: Vector3, radius: float, material: StandardMaterial3D) -> void:
