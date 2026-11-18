@@ -206,3 +206,23 @@ func test_reeling_is_three_times_faster_and_plays_a_winch() -> void:
 	Input.action_release("jump")
 	await wait_physics_frames(2)
 	assert_false(player.is_winching(), "the winch should stop when Space is released")
+
+
+func test_a_planted_stake_prevents_freezing() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+
+	var up: Vector3 = player.get_up()
+	player.global_position = (
+		planet.get_center() + up * (planet.radius + planet.cold_altitude() + 1.0)
+	)
+	player.velocity = Vector3.ZERO
+	player._cold = 0.85
+	player._update_cold(2.0)
+
+	assert_lt(player.get_cold(), 1.0, "a planted stake should cap the cold below death")
+	assert_false(player.dead, "the boy must not freeze while the stake holds him")

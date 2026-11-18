@@ -22,6 +22,7 @@ var _debris_hints_available: bool = true
 @onready var _player: Boy = $Player
 @onready var _camera_rig: CameraRig = $CameraRig
 @onready var _debris: DebrisManager = $DebrisManager
+@onready var _skeleton: SkeletonProp = $Skeleton
 @onready var _hud: GameHUD = $GameHud
 @onready var _inventory_ui: InventoryUI = $Inventory
 @onready var _game_over: GameOverUI = $GameOver
@@ -56,6 +57,8 @@ func _ready() -> void:
 	_rope.removed.connect(_on_rope_removed)
 	_rope.snapped.connect(_on_rope_snapped)
 	_player.set_rope(_rope)
+	_skeleton.setup(_planet, _player)
+	_skeleton.item_picked.connect(_on_skeleton_item_picked)
 
 	_player.cold_changed.connect(_on_cold_changed)
 	_player.froze.connect(_on_froze)
@@ -191,11 +194,21 @@ func _on_inventory_closed() -> void:
 func _on_inventory_use(index: int) -> void:
 	if _state != State.INVENTORY:
 		return
-	var stone: StoneItem = _model.remove_at(index)
-	if stone == null:
+	if index < 0 or index >= _model.items.size():
 		return
+	var stone: StoneItem = _model.items[index]
+	if stone == null or not stone.is_stone():
+		return
+	_model.remove_at(index)
 	_inventory_ui.close()
 	_start_apply(stone)
+
+
+func _on_skeleton_item_picked(kind: int) -> void:
+	var item: StoneItem = StoneItem.new(kind, 1.0, 0)
+	_model.add(item)
+	_hud.set_inventory_count(_model.size())
+	_hud.show_toast("У сумці: %s" % item.display_name(), Color("d9cbb8"), 2.6)
 
 
 func _start_apply(stone: StoneItem) -> void:

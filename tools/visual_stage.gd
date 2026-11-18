@@ -35,10 +35,51 @@ func _setup() -> void:
 			game.debug_open_inventory()
 		"empty":
 			game.debug_open_inventory()
+		"inventory_finds":
+			game.debug_grant_stone(StoneItem.Kind.WATERING_CAN, 1.0)
+			game.debug_grant_stone(StoneItem.Kind.POUCH, 1.0)
+			game.debug_open_inventory()
 		"smear":
 			game.debug_grant_stone(StoneItem.Kind.ROCK, 1.5)
 			await get_tree().create_timer(0.2).timeout
 			game.debug_apply_first_stone()
+		"skeleton":
+			var skel_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			var skel_prop: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
+			var skel_player: Boy = game.get_node("Player") as Boy
+			var skel_planet: Planet = game.get_node("Planet") as Planet
+			skel_prop.set_process(false)
+			var skel_up: Vector3 = (
+				(skel_prop.global_position - skel_planet.get_center()).normalized()
+			)
+			var skel_side: Vector3 = skel_prop.global_transform.basis.z
+			skel_player.global_position = (
+				skel_prop.global_position - skel_side * 1.7 + skel_up * 0.2
+			)
+			skel_player.snap_to_surface()
+			skel_rig.setup(skel_prop, skel_planet)
+			skel_rig.base_lift = 1.7
+			skel_rig.base_distance = 3.6
+			await get_tree().create_timer(0.6).timeout
+		"skeleton_sink":
+			var sink_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			var sink_prop: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
+			var sink_player: Boy = game.get_node("Player") as Boy
+			var sink_planet: Planet = game.get_node("Planet") as Planet
+			sink_prop.set_process(false)
+			var sink_up: Vector3 = (
+				(sink_prop.global_position - sink_planet.get_center()).normalized()
+			)
+			var sink_side: Vector3 = sink_prop.global_transform.basis.z
+			sink_player.global_position = (
+				sink_prop.global_position - sink_side * 1.7 + sink_up * 0.2
+			)
+			sink_player.snap_to_surface()
+			sink_planet.apply_radius(PlanetProfile.BASE_RADIUS + 0.24)
+			sink_rig.setup(sink_prop, sink_planet)
+			sink_rig.base_lift = 1.7
+			sink_rig.base_distance = 3.6
+			await get_tree().create_timer(0.6).timeout
 		"debris":
 			var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 			debris.force_spawn()

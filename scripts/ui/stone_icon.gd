@@ -25,6 +25,9 @@ func _draw() -> void:
 		draw_arc(center, radius, 0.0, TAU, 28, Color(0.72, 0.66, 0.68, 0.35), 1.5, true)
 		draw_circle(center, radius * 0.12, Color(0.72, 0.66, 0.68, 0.18))
 		return
+	if not _stone.is_stone():
+		_draw_found_item(center, radius)
+		return
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _stone.shape_seed
@@ -70,3 +73,52 @@ func _draw() -> void:
 		var crack_from: Vector2 = points[rng.randi_range(0, points.size() - 1)]
 		var crack_to: Vector2 = points[rng.randi_range(0, points.size() - 1)]
 		draw_line(crack_from, crack_to, Color(0.20, 0.16, 0.18, 0.35), 1.0, true)
+
+
+func _draw_found_item(center: Vector2, radius: float) -> void:
+	var accent: Color = _stone.accent_color()
+	var ink: Color = accent.darkened(0.35)
+	draw_circle(center + Vector2(0.0, radius * 0.42), radius * 0.72, Color(0.0, 0.0, 0.0, 0.18))
+	if _stone.kind == StoneItem.Kind.WATERING_CAN:
+		var body := Rect2(
+			center + Vector2(-radius * 0.52, -radius * 0.26), Vector2(radius * 0.9, radius * 0.86)
+		)
+		draw_rect(body, accent, true)
+		draw_rect(body, ink, false, 2.0)
+		draw_line(
+			center + Vector2(radius * 0.18, -radius * 0.08),
+			center + Vector2(radius * 0.78, -radius * 0.66),
+			accent.lightened(0.12),
+			3.0,
+			true
+		)
+		draw_circle(
+			center + Vector2(radius * 0.78, -radius * 0.66), radius * 0.15, accent.lightened(0.2)
+		)
+		draw_arc(
+			center + Vector2(-radius * 0.38, -radius * 0.24),
+			radius * 0.30,
+			PI * 0.95,
+			PI * 2.0,
+			16,
+			ink,
+			2.2,
+			true
+		)
+		draw_circle(
+			center + Vector2(radius * 0.55, radius * 0.22),
+			radius * 0.05,
+			Color(0.62, 0.85, 0.92, 0.9)
+		)
+	else:
+		draw_circle(center + Vector2(0.0, radius * 0.06), radius * 0.58, accent)
+		draw_arc(center + Vector2(0.0, radius * 0.06), radius * 0.58, 0.0, TAU, 28, ink, 2.0, true)
+		draw_line(
+			center + Vector2(-radius * 0.24, -radius * 0.48),
+			center + Vector2(radius * 0.24, -radius * 0.48),
+			ink,
+			2.4,
+			true
+		)
+		draw_arc(center + Vector2(0.0, -radius * 0.46), radius * 0.20, PI, TAU, 12, ink, 2.0, true)
+		draw_circle(center + Vector2(radius * 0.30, radius * 0.20), radius * 0.05, ink)

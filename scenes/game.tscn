@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game.gd" id="1_game"]
 [ext_resource type="Script" path="res://scripts/game/debris_manager.gd" id="2_debris"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://ui/game_over.tscn" id="8_over"]
 [ext_resource type="PackedScene" path="res://ui/pause_menu.tscn" id="9_pause"]
 [ext_resource type="Shader" path="res://shaders/frost_overlay.gdshader" id="10_frost"]
+[ext_resource type="PackedScene" path="res://scenes/skeleton_prop.tscn" id="11_skeleton"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_frost"]
 shader = ExtResource("10_frost")
@@ -41,6 +42,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.05, 0)
 
 [node name="DebrisManager" type="Node3D" parent="."]
 script = ExtResource("2_debris")
+
+[node name="Skeleton" parent="." instance=ExtResource("11_skeleton")]
 
 [node name="GameHud" parent="." instance=ExtResource("6_hud")]
 

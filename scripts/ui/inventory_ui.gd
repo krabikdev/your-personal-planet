@@ -117,7 +117,10 @@ func _make_card(item: StoneItem, index: int) -> Button:
 	vbox.add_child(name_label)
 
 	var size_label := Label.new()
-	size_label.text = "%.1f ×" % item.size_factor
+	if item.is_stone():
+		size_label.text = "%.1f ×" % item.size_factor
+	else:
+		size_label.text = item.size_label()
 	size_label.theme_type_variation = &"SmallLabel"
 	size_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	size_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -159,6 +162,22 @@ func _refresh_details() -> void:
 		return
 	var item: StoneItem = _items[_selected]
 	_preview.setup(item, 1.7)
+	if not item.is_stone():
+		_item_name.text = item.display_name()
+		_item_size.text = "Знахідка біля старого скелета"
+		_item_growth.text = ""
+		if item.kind == StoneItem.Kind.WATERING_CAN:
+			_item_flavor.text = (
+				"Іржава поливалка з давньої подорожі. "
+				+ "Пахне металом і дощем, якого на цій планеті не буває."
+			)
+		else:
+			_item_flavor.text = (
+				"Мішечок із грубої тканини, затягнутий мотузкою. "
+				+ "Усередині лише пил і кілька крихт чогось давно з'їденого."
+			)
+		_use_button.disabled = true
+		return
 	_item_name.text = "%s з орбіти" % item.display_name()
 	_item_size.text = "%.1f × зросту хлопчика" % item.size_factor
 	var growth: float = PlanetProfile.growth_for_stone(_planet_radius, item.size_factor)
