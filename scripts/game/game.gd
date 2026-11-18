@@ -101,10 +101,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("stake") and _state == State.PLAYING:
-		if _rope.is_planted():
+		if not _rope.is_planted():
+			_player.plant_stake()
+		elif _player.can_remove_stake():
 			_player.remove_stake()
 		else:
-			_player.plant_stake()
+			_hud.show_toast("Мотузку можна відв'язати лише на землі.", Color("cdb38d"), 2.0)
 		get_viewport().set_input_as_handled()
 		return
 	if (
