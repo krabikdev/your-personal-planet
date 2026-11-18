@@ -80,3 +80,56 @@ func test_the_duke_tucks_his_legs_when_he_jumps() -> void:
 		0.12,
 		"the feet should come up under the body, not trail behind",
 	)
+
+
+func test_the_rope_lean_fades_as_the_boy_comes_back_down() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+
+	var planet: Planet = game.get_node("Planet") as Planet
+	var player: Boy = game.get_node("Player") as Boy
+	var model: PrinceModel = player._model
+	planet.apply_radius(20.0)
+	player.snap_to_surface()
+	await wait_physics_frames(1)
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var up: Vector3 = player.get_up()
+	var centre: Vector3 = planet.get_center()
+	Input.action_press("jump")
+
+	player.global_position = centre + up * (planet.radius + 6.0)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(26)
+	var high: float = model.get_lean()
+
+	player.global_position = centre + up * (planet.radius + 0.6)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(12)
+	var low: float = model.get_lean()
+	Input.action_release("jump")
+
+	assert_gt(high, 0.4, "up the rope he should be hanging")
+	assert_lt(low, high * 0.6, "near the ground the body should line up with the surface again")
+
+
+func test_the_winch_lets_go_at_the_stake_and_lands() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+
+	var player: Boy = game.get_node("Player") as Boy
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var anchor: Vector3 = player.rope.get_anchor_position()
+	player.global_position = anchor + player.get_up() * 2.5
+	player.velocity = Vector3.ZERO
+	Input.action_press("jump")
+	await wait_physics_frames(70)
+	var landed: bool = player.is_on_floor()
+	var altitude: float = player.get_altitude()
+	Input.action_release("jump")
+
+	assert_lt(altitude, 0.4, "the winch should put him down at the stake, not leave him hanging")
+	assert_true(landed, "holding Space at the stake should still let him land")
