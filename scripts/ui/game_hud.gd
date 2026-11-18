@@ -7,7 +7,6 @@ extends CanvasLayer
 signal inventory_requested
 
 var _toast_tween: Tween
-var _warning_tween: Tween
 var _intro_tween: Tween
 
 @onready var _diameter_label: Label = %DiameterLabel
@@ -15,7 +14,6 @@ var _intro_tween: Tween
 @onready var _jump_label: Label = %JumpLabel
 @onready var _safety_label: Label = %SafetyLabel
 @onready var _inventory_button: Button = %InventoryButton
-@onready var _warning_label: Label = %WarningLabel
 @onready var _toast_label: Label = %ToastLabel
 @onready var _cold_label: Label = %ColdLabel
 @onready var _intro_panel: Control = %IntroPanel
@@ -24,7 +22,6 @@ var _intro_tween: Tween
 
 func _ready() -> void:
 	_inventory_button.pressed.connect(_on_inventory_pressed)
-	_warning_label.visible = false
 	_cold_label.visible = false
 	_toast_label.modulate.a = 0.0
 	_intro_panel.visible = false
@@ -67,29 +64,6 @@ func show_toast(text: String, color: Color = Color("f3e7d3"), seconds: float = 3
 	_toast_tween.tween_callback(func() -> void: _toast_label.visible = false)
 
 
-func show_warning(kind: int) -> void:
-	var text: String = "Крига летить повз планету"
-	var color := Color("a9d7d6")
-	if kind == StoneItem.Kind.ROCK:
-		text = "Камінь летить повз планету"
-		color = Color("e8ae86")
-	_warning_label.text = text + "\nдивись у небо і готуйся"
-	_warning_label.add_theme_color_override("font_color", color)
-	_warning_label.visible = true
-	if _warning_tween != null and _warning_tween.is_valid():
-		_warning_tween.kill()
-	_warning_label.modulate.a = 0.45
-	_warning_tween = create_tween().set_loops()
-	_warning_tween.tween_property(_warning_label, "modulate:a", 1.0, 0.85)
-	_warning_tween.tween_property(_warning_label, "modulate:a", 0.45, 0.85)
-
-
-func hide_warning() -> void:
-	if _warning_tween != null and _warning_tween.is_valid():
-		_warning_tween.kill()
-	_warning_label.visible = false
-
-
 func set_cold(amount: float) -> void:
 	var value: float = clampf(amount, 0.0, 1.0)
 	_cold_label.visible = value > 0.04
@@ -119,7 +93,6 @@ func hide_intro() -> void:
 
 
 func set_dead() -> void:
-	hide_warning()
 	_cold_label.visible = false
 	_controls_label.visible = false
 	_inventory_button.disabled = true
@@ -137,5 +110,6 @@ func fade_controls() -> void:
 func _populate_controls() -> void:
 	_controls_label.text = (
 		"WASD  рух     ·     Shift  біг     ·     Пробіл  стрибок     ·     "
-		+ "ПКМ  кілок     ·     ЛКМ  сачок     ·     I  сумка     ·     Миша  камера"
+		+ "ПКМ  кілок     ·     ЛКМ  сачок     ·     Q  небо     ·     I  сумка"
+		+ "     ·     Миша  камера"
 	)

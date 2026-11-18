@@ -181,6 +181,29 @@ func test_debris_flyby_is_silent() -> void:
 		)
 
 
+func test_debris_drifts_at_half_speed() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
+	debris.force_spawn(0.5)
+	assert_gte(debris._speed, 1.3, "the junk should drift slowly across the sky")
+	assert_lte(debris._speed, 2.2, "the flyby should take twice as long as it used to")
+
+
+func test_the_first_flyby_shows_no_hint() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var hud: GameHUD = game.get_node("GameHud") as GameHUD
+	assert_null(hud.get_node_or_null("%WarningLabel"), "the flyby warning was removed")
+	assert_false(hud.has_method("show_warning"), "the HUD cannot show a flyby hint any more")
+
+
 func test_debris_appears_far_from_the_planet() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game
@@ -269,7 +292,7 @@ func test_the_duke_turns_smoothly_towards_the_stick() -> void:
 	var target: Vector3 = rig.get_tangent_right(up)
 	var start: Vector3 = -player.global_transform.basis.z
 	Input.action_press("move_right")
-	await get_tree().create_timer(0.06).timeout
+	await wait_physics_frames(1)
 	var early: Vector3 = -player.global_transform.basis.z
 	await get_tree().create_timer(0.5).timeout
 	var late: Vector3 = -player.global_transform.basis.z
@@ -277,7 +300,7 @@ func test_the_duke_turns_smoothly_towards_the_stick() -> void:
 
 	var target_late: Vector3 = rig.get_tangent_right(player.get_up())
 	assert_gt(start.angle_to(early), 0.02, "the body should start turning right away")
-	assert_lt(early.angle_to(target_late), 1.2, "one frame must not finish the turn")
+	assert_gt(early.angle_to(target_late), 0.6, "one frame must not finish the turn")
 	assert_lt(late.angle_to(target_late), 0.35, "the body should end up facing the input")
 
 
@@ -315,6 +338,67 @@ func test_mouse_motion_rotates_the_camera_without_clicking() -> void:
 	rig._unhandled_input(motion)
 	var after: Vector3 = rig.get_tangent_forward(Vector3.UP)
 	assert_gt(before.angle_to(after), 0.1, "moving the mouse should turn the view left or right")
+
+
+func test_the_sky_view_action_is_mapped_to_q() -> void:
+	var found: bool = false
+	for event: InputEvent in InputMap.action_get_events("sky_view"):
+		if event is InputEventKey:
+			var key := event as InputEventKey
+			if key.physical_keycode == KEY_Q:
+				found = true
+	assert_true(found, "holding Q should lift the camera to the sky")
+
+
+func test_holding_q_points_the_camera_straight_up_from_the_duke() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
+	var player: Boy = game.get_node("Player") as Boy
+	Input.action_press("sky_view")
+	await get_tree().create_timer(0.6).timeout
+
+	var camera: Camera3D = rig.get_camera()
+	var look: Vector3 = -camera.global_transform.basis.z
+	var up: Vector3 = player.get_up()
+	Input.action_release("sky_view")
+	assert_gt(look.dot(up), 0.95, "the camera should look straight up into space")
+	assert_lt(
+		camera.global_position.distance_to(player.global_position),
+		2.6,
+		"the camera should sit right at the duke's head"
+	)
+	assert_false(player.is_net_active(), "looking up should not swing the net")
+
+
+func test_the_sky_camera_follows_the_mouse_in_every_direction() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
+	Input.action_press("sky_view")
+	await get_tree().create_timer(0.4).timeout
+	var start_pitch: float = rig.get_sky_pitch()
+	var start_yaw: float = rig.get_sky_yaw()
+
+	var sideways := InputEventMouseMotion.new()
+	sideways.relative = Vector2(200.0, 0.0)
+	rig._unhandled_input(sideways)
+	assert_gt(absf(rig.get_sky_yaw() - start_yaw), 0.1, "moving the mouse sideways turns the view")
+
+	var downward := InputEventMouseMotion.new()
+	downward.relative = Vector2(0.0, 220.0)
+	rig._unhandled_input(downward)
+	assert_lt(rig.get_sky_pitch(), start_pitch - 0.1, "moving the mouse down tilts the view down")
+
+	Input.action_release("sky_view")
+	await get_tree().create_timer(0.3).timeout
+	assert_false(rig.is_sky_view(), "releasing Q should return to the chase camera")
 
 
 func test_interact_is_mapped_to_the_left_mouse_button() -> void:

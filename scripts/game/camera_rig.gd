@@ -8,6 +8,8 @@ extends Node3D
 @export var base_lift: float = 3.0
 @export var base_distance: float = 3.4
 @export var mouse_sensitivity: float = 0.0025
+@export var sky_head_height: float = 1.72
+@export var sky_blend_speed: float = 6.0
 
 var _target: Node3D
 var _planet: Planet
@@ -20,6 +22,10 @@ var _time: float = 0.0
 var _focus: float = 1.0
 var _altitude: float = 0.0
 var _target_focus: float = 1.0
+var _sky: bool = false
+var _sky_blend: float = 0.0
+var _sky_yaw: float = 0.0
+var _sky_pitch: float = PI * 0.5
 
 @onready var _camera: Camera3D = %Camera
 
@@ -55,6 +61,29 @@ func orbit_by(pixels: float) -> void:
 	_view_yaw = wrapf(_view_yaw - pixels * mouse_sensitivity, -PI, PI)
 
 
+## Holding Q lifts the camera to the duke's head and aims it straight up, so
+## only space is visible. The mouse then looks around freely from there.
+func set_sky_view(value: bool) -> void:
+	if value == _sky:
+		return
+	_sky = value
+	if value:
+		_sky_yaw = _view_yaw
+		_sky_pitch = PI * 0.5
+
+
+func is_sky_view() -> bool:
+	return _sky
+
+
+func get_sky_pitch() -> float:
+	return _sky_pitch
+
+
+func get_sky_yaw() -> float:
+	return _sky_yaw
+
+
 func get_view_yaw() -> float:
 	return _view_yaw
 
@@ -76,7 +105,14 @@ func get_camera() -> Camera3D:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
-		orbit_by((event as InputEventMouseMotion).relative.x)
+		var motion := event as InputEventMouseMotion
+		if _sky:
+			_sky_yaw = wrapf(_sky_yaw - motion.relative.x * mouse_sensitivity, -PI, PI)
+			_sky_pitch = clampf(
+				_sky_pitch - motion.relative.y * mouse_sensitivity, -PI * 0.5, PI * 0.5
+			)
+		else:
+			orbit_by(motion.relative.x)
 
 
 func _process(delta: float) -> void:
@@ -86,6 +122,7 @@ func _process(delta: float) -> void:
 	_intro = move_toward(_intro, 0.0, delta * 0.55)
 	_shake = move_toward(_shake, 0.0, delta * 2.2)
 	_focus = lerpf(_focus, _target_focus, 1.0 - exp(-3.5 * delta))
+	_sky_blend = move_toward(_sky_blend, 1.0 if _sky else 0.0, delta * sky_blend_speed)
 
 	var target_position: Vector3 = _target.get_global_transform_interpolated().origin
 	var horizon: float = (target_position - _planet.get_center()).length() - _planet.radius
@@ -118,7 +155,19 @@ func _process(delta: float) -> void:
 		_camera.global_position += offset * _shake
 
 	var look_target: Vector3 = _orbit + orbit_up * 0.55 + view_forward * 1.1
-	_camera.look_at(look_target, orbit_up)
+	var up_hint: Vector3 = orbit_up
+	if _sky_blend > 0.0001:
+		var frame_forward: Vector3 = _heading.rotated(orbit_up, _sky_yaw)
+		var sky_forward: Vector3 = (
+			(frame_forward * cos(_sky_pitch) + orbit_up * sin(_sky_pitch)).normalized()
+		)
+		var head: Vector3 = _orbit + orbit_up * sky_head_height
+		_camera.global_position = _camera.global_position.lerp(head, _sky_blend)
+		look_target = look_target.lerp(head + sky_forward * 3.0, _sky_blend)
+		var steep: float = clampf((absf(_sky_pitch) - 1.3) / 0.25, 0.0, 1.0)
+		up_hint = orbit_up.lerp(frame_forward, steep * _sky_blend).normalized()
+
+	_camera.look_at(look_target, up_hint)
 	_camera.fov = lerpf(
 		_camera.fov, 52.0 + clampf(_altitude * 0.20, 0.0, 10.0), 1.0 - exp(-2.0 * delta)
 	)

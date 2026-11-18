@@ -86,7 +86,8 @@ func _setup() -> void:
 		"catch":
 			var catcher: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 			catcher.force_spawn(0.5)
-			await get_tree().create_timer(11.6).timeout
+			await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.4).timeout
+			catcher.debug_place_at(-2.0)
 			var planet: Planet = game.get_node("Planet") as Planet
 			var player: Boy = game.get_node("Player") as Boy
 			var point: Vector3 = catcher.debug_closest_point()
@@ -117,7 +118,8 @@ func _setup() -> void:
 		"hint":
 			var hint_catcher: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 			hint_catcher.force_spawn(0.5)
-			await get_tree().create_timer(11.6).timeout
+			await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.4).timeout
+			hint_catcher.debug_place_at(-2.0)
 			var hint_planet: Planet = game.get_node("Planet") as Planet
 			var hint_player: Boy = game.get_node("Player") as Boy
 			var hint_point: Vector3 = hint_catcher.debug_closest_point()
@@ -182,6 +184,23 @@ func _setup() -> void:
 			var approach: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 			approach.force_spawn()
 			await get_tree().create_timer(7.0).timeout
+		"far_side":
+			var far: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+			far.debug_spawn_all()
+			await get_tree().process_frame
+			var far_props: Array[DecorProp] = far.get_props()
+			var far_marker := Node3D.new()
+			far.add_child(far_marker)
+			far_marker.global_position = far_props[4].global_position
+			var far_planet: Planet = game.get_node("Planet") as Planet
+			var far_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			far_rig.setup(far_marker, far_planet)
+			far_rig.base_lift = 2.4
+			far_rig.base_distance = 8.5
+			await get_tree().create_timer(0.9).timeout
+		"sky":
+			Input.action_press("sky_view")
+			await get_tree().create_timer(1.0).timeout
 		"closeup":
 			var rig: CameraRig = game.get_node("CameraRig") as CameraRig
 			rig.base_lift = 1.1
