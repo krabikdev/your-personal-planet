@@ -372,7 +372,7 @@ func test_the_rope_lies_on_the_ground_when_the_boy_walks_around_the_planet() -> 
 	)
 
 
-func test_the_rope_pulls_straight_when_the_boy_hangs_in_the_air() -> void:
+func test_the_rope_drapes_to_the_ground_and_rises_to_the_hand() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(1)
 
@@ -387,13 +387,22 @@ func test_the_rope_pulls_straight_when_the_boy_hangs_in_the_air() -> void:
 	await wait_physics_frames(1)
 	player.rope.debug_advance(1.2)
 
+	var centre: Vector3 = planet.get_center()
 	var points: PackedVector3Array = player.rope.get_rope_points()
-	assert_gte(points.size(), 4, "there should be a rope between the stake and the boy")
-	var start: Vector3 = points[0]
-	var finish: Vector3 = points[points.size() - 1]
+	var lowest: float = INF
+	var highest: float = 0.0
 	for point: Vector3 in points:
-		var closest: Vector3 = Geometry3D.get_closest_point_to_segment(point, start, finish)
-		assert_lt(point.distance_to(closest), 0.15, "a taut rope in the air should hang in a line")
+		var height: float = point.distance_to(centre) - planet.radius
+		lowest = minf(lowest, height)
+		highest = maxf(highest, height)
+
+	assert_lt(lowest, 0.25, "the rope should still reach the ground from the stake")
+	assert_gt(highest, 4.0, "and climb all the way up to the hand")
+	assert_lt(
+		points[points.size() - 1].distance_to(player.get_hand_position()),
+		0.6,
+		"the loose end should sit in his hand",
+	)
 
 
 func test_the_rope_never_jumps_to_the_far_side_of_the_planet() -> void:
