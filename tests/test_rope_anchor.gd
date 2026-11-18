@@ -130,6 +130,21 @@ func test_space_slows_the_flight_instead_of_throwing_the_boy_back() -> void:
 	assert_lt(player.get_altitude(), 4.6, "then it should start pulling him home")
 
 
+func test_a_rope_snap_does_not_play_the_flying_whoosh() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var whoosh: AudioStream = load("res://assets/audio/whoosh.wav")
+	player.rope.notify_snap(6.0)
+	await wait_process_frames(1)
+	for audio_player: AudioStreamPlayer in AudioDirector._pool:
+		assert_ne(audio_player.stream, whoosh, "the rope must not play the airy flight whoosh")
+
+
 func test_removing_the_stake_removes_the_rope() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(3)
