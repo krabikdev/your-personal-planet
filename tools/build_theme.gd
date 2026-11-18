@@ -5,6 +5,8 @@ extends SceneTree
 ##   godot --headless --path . --script tools/build_theme.gd
 ## Re-run it whenever the visual language changes; the .tres is committed.
 
+const FONT_PATH: String = "res://assets/fonts/Underdog-Regular.ttf"
+
 const CREAM := Color("f3e7d3")
 const CREAM_SOFT := Color("d9cbb8")
 const MUTED := Color("b9a9b8")
@@ -19,48 +21,39 @@ const DANGER := Color("d98a8a")
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://ui/theme"))
 	var theme := Theme.new()
-	var body := SystemFont.new()
-	body.font_names = PackedStringArray(
-		["Georgia", "Palatino Linotype", "Times New Roman", "Segoe UI", "serif"]
-	)
-	body.font_weight = 400
-	body.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
-
-	var title := SystemFont.new()
-	title.font_names = body.font_names
-	title.font_italic = true
-	title.font_weight = 400
-	title.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
-
-	var strong := SystemFont.new()
-	strong.font_names = body.font_names
-	strong.font_weight = 700
+	var base: FontFile = load(FONT_PATH) as FontFile
+	var body: Font = _bold(base, 0.3)
+	var title: Font = _bold(base, 0.7)
+	var strong: Font = _bold(base, 0.5)
 
 	theme.default_font = body
-	theme.default_font_size = 18
+	theme.default_font_size = 20
 
 	theme.set_color("font_color", "Label", CREAM_SOFT)
-	theme.set_color("font_shadow_color", "Label", Color(0, 0, 0, 0.35))
-	theme.set_constant("shadow_offset_x", "Label", 1)
-	theme.set_constant("shadow_offset_y", "Label", 2)
+	theme.set_color("font_shadow_color", "Label", Color(0, 0, 0, 0.45))
+	theme.set_constant("shadow_offset_x", "Label", 2)
+	theme.set_constant("shadow_offset_y", "Label", 3)
 
-	_build_variation(theme, "TitleLabel", "Label", title, 58, CREAM)
-	_build_variation(theme, "MenuTitle", "Label", title, 64, CREAM)
-	_build_variation(theme, "H1", "Label", strong, 28, CREAM)
-	_build_variation(theme, "Subtitle", "Label", title, 21, MUTED)
-	_build_variation(theme, "SmallLabel", "Label", body, 14, MUTED)
-	_build_variation(theme, "StatValue", "Label", strong, 19, CREAM)
-	_build_variation(theme, "AccentLabel", "Label", body, 16, PEACH)
-	_build_variation(theme, "DangerLabel", "Label", body, 20, DANGER)
-	_build_variation(theme, "SectionLabel", "Label", strong, 14, SAGE)
+	_build_variation(theme, "TitleLabel", "Label", title, 66, CREAM)
+	_build_variation(theme, "MenuTitle", "Label", title, 72, CREAM)
+	_build_variation(theme, "H1", "Label", strong, 32, CREAM)
+	_build_variation(theme, "Subtitle", "Label", title, 22, MUTED)
+	_build_variation(theme, "SmallLabel", "Label", body, 15, MUTED)
+	_build_variation(theme, "StatValue", "Label", strong, 21, CREAM)
+	_build_variation(theme, "AccentLabel", "Label", body, 17, PEACH)
+	_build_variation(theme, "DangerLabel", "Label", body, 22, DANGER)
+	_build_variation(theme, "SectionLabel", "Label", strong, 16, SAGE)
 
 	theme.set_color("font_color", "Button", CREAM_SOFT)
 	theme.set_color("font_hover_color", "Button", CREAM)
 	theme.set_color("font_pressed_color", "Button", CREAM)
 	theme.set_color("font_focus_color", "Button", CREAM)
 	theme.set_font("font", "Button", body)
-	theme.set_font_size("font_size", "Button", 20)
+	theme.set_font_size("font_size", "Button", 22)
 	theme.set_constant("outline_size", "Button", 0)
+	theme.set_color("font_shadow_color", "Button", Color(0, 0, 0, 0.40))
+	theme.set_constant("shadow_offset_x", "Button", 2)
+	theme.set_constant("shadow_offset_y", "Button", 2)
 
 	var button_normal := _style(Color("211d31", 0.90), PANEL_EDGE, 1, 12)
 	button_normal.content_margin_left = 24
@@ -99,10 +92,12 @@ func _initialize() -> void:
 	theme.set_stylebox("panel", "PanelContainer", panel)
 
 	theme.set_type_variation("HudPanel", "PanelContainer")
-	theme.set_stylebox("panel", "HudPanel", _style(Color("171425", 0.72), Color("6c5a6b", 0.55), 1, 14))
+	theme.set_stylebox(
+		"panel", "HudPanel", _style(Color("171425", 0.72), Color("6c5a6b", 0.55), 1, 14)
+	)
 
 	theme.set_type_variation("Card", "Button")
-	theme.set_font_size("font_size", "Card", 15)
+	theme.set_font_size("font_size", "Card", 16)
 	var card_normal := _style(Color("211d31", 0.92), Color("55465c", 1.0), 1, 12)
 	var card_hover := _style(Color("2d2743", 0.98), PEACH, 1, 12)
 	var card_pressed := _style(Color("3b3049", 1.0), PEACH, 2, 12)
@@ -121,7 +116,9 @@ func _initialize() -> void:
 	theme.set_color("font_color", "Card", CREAM_SOFT)
 	theme.set_color("font_pressed_color", "Card", CREAM)
 
-	theme.set_stylebox("separator", "HSeparator", _style(Color("6c5a6b", 0.35), Color(0, 0, 0, 0), 0, 0))
+	theme.set_stylebox(
+		"separator", "HSeparator", _style(Color("6c5a6b", 0.35), Color(0, 0, 0, 0), 0, 0)
+	)
 	theme.set_constant("separation", "HSeparator", 10)
 
 	var slider := _style(Color("171425", 0.9), Color("4a3f52", 1.0), 1, 4)
@@ -151,13 +148,15 @@ func _initialize() -> void:
 	quit()
 
 
+func _bold(base: FontFile, amount: float) -> FontVariation:
+	var font := FontVariation.new()
+	font.base_font = base
+	font.variation_embolden = amount
+	return font
+
+
 func _build_variation(
-	theme: Theme,
-	name: String,
-	base: String,
-	font: Font,
-	size: int,
-	color: Color
+	theme: Theme, name: String, base: String, font: Font, size: int, color: Color
 ) -> void:
 	theme.set_type_variation(name, base)
 	theme.set_font("font", name, font)
@@ -166,9 +165,7 @@ func _build_variation(
 	theme.set_color("font_shadow_color", name, Color(0, 0, 0, 0.25))
 
 
-func _style(
-	color: Color, border: Color, border_width: int, radius: int
-) -> StyleBoxFlat:
+func _style(color: Color, border: Color, border_width: int, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
 	style.border_color = border
