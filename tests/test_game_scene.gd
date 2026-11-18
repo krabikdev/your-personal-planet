@@ -145,6 +145,26 @@ func test_run_action_exists() -> void:
 	assert_true(InputMap.has_action("run"), "the run action should be mapped to Shift")
 
 
+func test_debris_is_caught_without_pressing_the_net() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
+	debris.force_spawn(0.5)
+	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.2).timeout
+
+	var node: Node3D = debris.get_node("Debris") as Node3D
+	node.global_position = player.get_net_catch_point()
+	assert_false(player.is_net_active(), "the player should not have to swing the net first")
+	assert_true(debris._try_catch(), "the net reaching the junk should catch it automatically")
+	assert_eq(
+		debris._phase, DebrisManager.Phase.CAUGHT, "the flyby should switch to the caught phase"
+	)
+
+
 func test_hud_planet_size_is_just_a_value() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game

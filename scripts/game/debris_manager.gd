@@ -2,10 +2,10 @@ class_name DebrisManager
 extends Node3D
 
 ## Schedules the slow parade of space junk. Every flyby happens over a random
-## side of the planet, not over the boy. The E prompt appears only while the
-## debris is actually close to him, and the catch itself requires the boy's net
-## to touch the debris during the swing. The first warning is a one-time
-## tutorial: after that the player has to watch the sky without HUD hints.
+## side of the planet, not over the boy. The catch is automatic: when the boy's
+## net reaches the junk, it is scooped up without pressing anything. The first
+## warning is a one-time tutorial: after that the player has to watch the sky
+## without HUD hints.
 
 signal warning_started(kind: int, size_factor: float)
 signal warning_cleared
@@ -203,14 +203,23 @@ func _update_flight(delta: float) -> void:
 	var near_boy: bool = _player_debris_distance() < CATCH_PROMPT_DISTANCE
 	_set_catch_available(near_boy)
 
-	if _debris != null and player.is_net_active():
-		var net_point: Vector3 = player.get_net_catch_point()
-		if _debris.global_position.distance_to(net_point) <= NET_CATCH_RADIUS:
-			_catch_with_net()
-			return
+	if _try_catch():
+		return
 
 	if _along > HALF_LENGTH:
 		_finish_missed()
+
+
+func _try_catch() -> bool:
+	if _phase != Phase.FLYING or _debris == null or player == null:
+		return false
+	var net_point: Vector3 = player.get_net_catch_point()
+	if _debris.global_position.distance_to(net_point) > NET_CATCH_RADIUS:
+		return false
+	# The catch is automatic: the net only has to reach the junk.
+	player.swing_net()
+	_catch_with_net()
+	return true
 
 
 func _surface_point(along: float) -> Vector3:
