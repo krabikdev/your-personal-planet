@@ -15,6 +15,7 @@ var _intro_tween: Tween
 @onready var _safety_label: Label = %SafetyLabel
 @onready var _inventory_button: Button = %InventoryButton
 @onready var _water_label: Label = %WaterLabel
+@onready var _health_bar: HealthBar = %HealthBar
 @onready var _toast_label: Label = %ToastLabel
 @onready var _cold_label: Label = %ColdLabel
 @onready var _intro_panel: Control = %IntroPanel
@@ -55,6 +56,10 @@ func set_inventory_count(count: int) -> void:
 func set_water(amount: float, has_can: bool) -> void:
 	_water_label.visible = has_can
 	_water_label.text = "Поливалка  %.1f" % maxf(amount, 0.0)
+
+
+func set_health(current: float, maximum: float) -> void:
+	_health_bar.set_value(current, maximum)
 
 
 func show_toast(text: String, color: Color = Color("f3e7d3"), seconds: float = 3.2) -> void:

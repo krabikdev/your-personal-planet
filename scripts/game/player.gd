@@ -8,6 +8,7 @@ signal froze
 signal cold_changed(amount: float)
 signal jumped
 signal landed(strength: float)
+signal health_changed(current: float, maximum: float)
 
 const ROPE_BOUNCE: float = 0.1
 const ROPE_RECOIL_MAX: float = 1.2
@@ -28,6 +29,10 @@ const ROPE_HANG_FADE: float = 2.0
 const ROPE_HANG_FLOOR: float = 0.4
 ## How far in front of his feet the watering can reaches.
 const WATER_REACH: float = 1.05
+const MAX_HEALTH: float = 100.0
+## One point of health comes back every ten seconds of ordinary time.
+const HEALTH_REGEN_INTERVAL: float = 10.0
+const HEALTH_REGEN_AMOUNT: float = 1.0
 
 @export var walk_speed: float = 3.3
 @export var run_multiplier: float = 1.8
@@ -47,6 +52,7 @@ var locked: bool = false
 var smearing: bool = false
 var dead: bool = false
 var watering: bool = false
+var health: float = MAX_HEALTH
 
 var _facing: Vector3 = Vector3.BACK
 var _coyote: float = 0.0
@@ -59,6 +65,7 @@ var _rope_crawl: bool = false
 var _rope_brake_latch: bool = false
 var _rope_done: bool = false
 var _winch_active: bool = false
+var _regen_clock: float = 0.0
 var _streams: Dictionary[String, AudioStream] = {}
 
 @onready var _model: PrinceModel = %Visual
@@ -168,6 +175,40 @@ func get_altitude() -> float:
 
 func get_cold() -> float:
 	return _cold
+
+
+func get_health() -> float:
+	return health
+
+
+func get_max_health() -> float:
+	return MAX_HEALTH
+
+
+## Monsters bite; acid does not. Zero health ends the run the same way cold
+## does: the boy freezes where he stands.
+func take_damage(amount: float) -> void:
+	if dead or amount <= 0.0:
+		return
+	health = maxf(health - amount, 0.0)
+	_regen_clock = 0.0
+	health_changed.emit(health, MAX_HEALTH)
+	if health <= 0.0:
+		freeze()
+
+
+func debug_set_health(value: float) -> void:
+	health = clampf(value, 0.0, MAX_HEALTH)
+	_regen_clock = 0.0
+	health_changed.emit(health, MAX_HEALTH)
+
+
+## Steps the regeneration clock without waiting ten real seconds per point.
+func debug_tick_health(seconds: float) -> void:
+	var steps: int = maxi(1, ceili(seconds / 0.5))
+	var step: float = seconds / float(steps)
+	for _i: int in steps:
+		_update_health(step)
 
 
 func get_speed_ratio() -> float:
@@ -340,6 +381,7 @@ func _physics_process(delta: float) -> void:
 	_was_grounded = grounded_now
 
 	_update_cold(delta)
+	_update_health(delta)
 	_model.set_motion(get_speed_ratio(), grounded_now, _running, velocity.length(), velocity)
 	var hanging: bool = rope != null and rope.is_planted() and not grounded_now and _rope_crawl
 	if hanging:
@@ -594,6 +636,18 @@ func _update_cold(delta: float) -> void:
 		cold_changed.emit(_cold)
 	if _cold >= 1.0:
 		freeze()
+
+
+## One point of health back every ten seconds, but only while still alive.
+func _update_health(delta: float) -> void:
+	if dead or health >= MAX_HEALTH:
+		_regen_clock = 0.0
+		return
+	_regen_clock += delta
+	while _regen_clock >= HEALTH_REGEN_INTERVAL:
+		_regen_clock -= HEALTH_REGEN_INTERVAL
+		health = minf(health + HEALTH_REGEN_AMOUNT, MAX_HEALTH)
+		health_changed.emit(health, MAX_HEALTH)
 
 
 func _play_stake_plant() -> void:

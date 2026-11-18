@@ -9,19 +9,41 @@ extends Node3D
 signal acid_hit
 
 enum Kind { GRASS, BUSH, SAPLING, TREE, BIG_TREE, MONSTER }
+enum State { WANDER, REST, CHASE }
 
-const MONSTER_WANDER_RADIUS: float = 0.38
-const MONSTER_WANDER_SPEED: float = 0.9
+const WANDER_TIME: float = 5.0
+const REST_MIN: float = 5.0
+const REST_MAX: float = 10.0
+const WANDER_SPEED: float = 0.85
+const CHASE_SPEED: float = 1.9
+const CHASE_SPEED_PER_LEVEL: float = 0.1
+const CONTACT_RADIUS: float = 0.85
+## How sharply a wandering monster bends its path, in radians per second.
+const WANDER_CURVE: float = 0.9
+const REST_TURN_EVERY_MIN: float = 1.1
+const REST_TURN_EVERY_MAX: float = 2.4
+const AGGRO_STEP: float = 5.0
+const CONTACT_DAMAGE_STEP: float = 1.0
 
 var kind: int = Kind.GRASS
 var anchor_dir: Vector3 = Vector3.UP
 var monster_level: int = 1
+
+var planet: Planet
+var boy: Boy
 
 var _seed: int = 0
 var _rng: RandomNumberGenerator
 var _time: float = 0.0
 var _visual: Node3D
 var _body: Node3D
+var _state: int = State.WANDER
+var _timer: float = WANDER_TIME
+var _heading: Vector3 = Vector3.FORWARD
+var _idle_timer: float = 1.0
+var _idle_yaw: float = 0.0
+var _spin: float = 0.0
+var _base_scale: float = 1.0
 
 
 func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
@@ -52,16 +74,49 @@ func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
 	set_process(kind == Kind.MONSTER)
 	if kind == Kind.MONSTER:
 		add_to_group("monsters")
+		_base_scale = 0.78 + 0.16 * float(monster_level)
 	# A soft pop-in makes a new arrival readable without moving the prop itself.
 	_visual.scale = Vector3.ONE * 0.12
 	var pop := create_tween()
 	pop.set_trans(Tween.TRANS_BACK)
 	pop.set_ease(Tween.EASE_OUT)
-	pop.tween_property(_visual, "scale", Vector3.ONE, 0.55)
+	pop.tween_property(_visual, "scale", Vector3.ONE * _base_scale, 0.55)
 
 
 func is_monster() -> bool:
 	return kind == Kind.MONSTER
+
+
+## Where the monster is in its day: wandering, resting, or running at the boy.
+func get_state() -> int:
+	return _state
+
+
+func get_aggro_radius() -> float:
+	return aggro_radius_for_level(monster_level)
+
+
+func get_contact_damage() -> float:
+	return contact_damage_for_level(monster_level)
+
+
+## Monsters get meaner in steps: 5/10/15/20 metres and 1/2/3/4 health a second.
+static func aggro_radius_for_level(level: int) -> float:
+	return AGGRO_STEP * float(clampi(level, 1, 4))
+
+
+static func contact_damage_for_level(level: int) -> float:
+	return CONTACT_DAMAGE_STEP * float(clampi(level, 1, 4))
+
+
+## Hands the monster the world it lives in. The spawner calls this after the
+## prop has been settled on the surface.
+func configure_monster(p_planet: Planet, p_boy: Boy, p_level: int) -> void:
+	planet = p_planet
+	boy = p_boy
+	monster_level = clampi(p_level, 1, 4)
+	_rng.seed = _seed + 31 * monster_level
+	_enter_wander()
 
 
 ## One blob of acid is enough: the monster dissolves and leaves the garden.
@@ -73,15 +128,138 @@ func hit_by_acid() -> void:
 func _process(delta: float) -> void:
 	if _body == null:
 		return
-	# Monsters pace in a small circle around their spawn point, so they look
-	# alive without ever leaving the far side or touching the boy.
 	_time += delta
-	var angle: float = _time * MONSTER_WANDER_SPEED
-	var step: Vector3 = Vector3(-sin(angle), 0.0, cos(angle))
-	_body.position = Vector3(cos(angle), 0.0, sin(angle)) * MONSTER_WANDER_RADIUS
+	if planet == null or boy == null or not is_instance_valid(boy):
+		_idle_bob()
+		return
+	_advance(delta)
+
+
+## Advances the monster's whole brain by `seconds` in small steps. Tests use it
+## instead of waiting out five-second wander and ten-second rest phases.
+func debug_step(seconds: float) -> void:
+	var steps: int = maxi(1, ceili(seconds / 0.05))
+	var step: float = seconds / float(steps)
+	for _i: int in steps:
+		_advance(step)
+
+
+## Puts the monster `distance` metres from the boy along the surface. Negative
+## is not allowed; zero means it is standing on top of him.
+func debug_place_near(boy_position: Vector3, distance: float) -> void:
+	if planet == null:
+		return
+	var up: Vector3 = (boy_position - planet.get_center()).normalized()
+	var reference: Vector3 = Vector3.FORWARD
+	if absf(reference.dot(up)) > 0.9:
+		reference = Vector3.RIGHT
+	var tangent: Vector3 = (reference - up * reference.dot(up)).normalized()
+	var angle: float = maxf(distance, 0.0) / maxf(planet.radius, 0.001)
+	anchor_dir = (up * cos(angle) + tangent * sin(angle)).normalized()
+	_heading = tangent
+	_update_transform(tangent)
+
+
+func _advance(delta: float) -> void:
+	var up: Vector3 = anchor_dir
+	var mine: Vector3 = _world_position()
+	var to_boy: Vector3 = boy.global_position - mine
+	var distance: float = to_boy.length()
+	var chasing: bool = distance <= get_aggro_radius()
+	if chasing:
+		if _state != State.CHASE:
+			_state = State.CHASE
+			_spin = 0.0
+		_body.rotation.y = 0.0
+		if distance > CONTACT_RADIUS:
+			var toward: Vector3 = to_boy - up * to_boy.dot(up)
+			if toward.length_squared() > 0.0001:
+				var speed: float = CHASE_SPEED + CHASE_SPEED_PER_LEVEL * float(monster_level)
+				_step(toward.normalized(), speed, delta)
+		else:
+			boy.take_damage(get_contact_damage() * delta)
+		_idle_bob()
+		return
+	if _state == State.CHASE:
+		_enter_wander()
+	_timer -= delta
+	if _timer <= 0.0:
+		if _state == State.WANDER:
+			_enter_rest()
+		else:
+			_enter_wander()
+	if _state == State.WANDER:
+		var bend: float = _rng.randf_range(-1.0, 1.0) * WANDER_CURVE * delta
+		_heading = _heading.rotated(up, bend).normalized()
+		_step(_heading, WANDER_SPEED, delta)
+		_spin = lerpf(_spin, 0.0, 1.0 - exp(-5.0 * delta))
+		_body.rotation.y = _spin
+	else:
+		# Resting: it stands still but keeps glancing around.
+		_idle_timer -= delta
+		if _idle_timer <= 0.0:
+			_idle_timer = _rng.randf_range(REST_TURN_EVERY_MIN, REST_TURN_EVERY_MAX)
+			_idle_yaw = _rng.randf_range(-0.9, 0.9)
+		_spin = lerpf(_spin, _idle_yaw, 1.0 - exp(-3.5 * delta))
+		_body.rotation.y = _spin
+	_idle_bob()
+
+
+func _idle_bob() -> void:
+	if _body == null:
+		return
 	_body.position.y = absf(sin(_time * 4.4 + float(_seed % 11))) * 0.05
-	if step.length_squared() > 0.001:
-		_body.rotation.y = atan2(-step.x, -step.z)
+
+
+func _enter_wander() -> void:
+	_state = State.WANDER
+	_timer = WANDER_TIME * _rng.randf_range(0.85, 1.15)
+	_heading = _random_tangent()
+
+
+func _enter_rest() -> void:
+	_state = State.REST
+	_timer = _rng.randf_range(REST_MIN, REST_MAX)
+	_idle_timer = _rng.randf_range(0.6, REST_TURN_EVERY_MAX)
+
+
+func _random_tangent() -> Vector3:
+	var up: Vector3 = anchor_dir
+	var reference: Vector3 = Vector3.FORWARD
+	if absf(reference.dot(up)) > 0.9:
+		reference = Vector3.RIGHT
+	var first: Vector3 = (reference - up * reference.dot(up)).normalized()
+	var second: Vector3 = up.cross(first).normalized()
+	var bearing: float = _rng.randf() * TAU
+	return (first * cos(bearing) + second * sin(bearing)).normalized()
+
+
+func _world_position() -> Vector3:
+	var center: Vector3 = planet.get_center()
+	return center + anchor_dir * planet.radius
+
+
+func _step(direction: Vector3, speed: float, delta: float) -> void:
+	var up: Vector3 = anchor_dir
+	var angle: float = speed * delta / maxf(planet.radius, 0.001)
+	anchor_dir = (up * cos(angle) + direction * sin(angle)).normalized()
+	_heading = direction - anchor_dir * direction.dot(anchor_dir)
+	if _heading.length_squared() < 0.0001:
+		_heading = _random_tangent()
+	_heading = _heading.normalized()
+	_update_transform(direction)
+
+
+func _update_transform(forward: Vector3) -> void:
+	if planet == null:
+		return
+	var up: Vector3 = anchor_dir
+	var tangent: Vector3 = forward - up * forward.dot(up)
+	if tangent.length_squared() < 0.0001:
+		tangent = _random_tangent()
+	tangent = tangent.normalized()
+	var right: Vector3 = tangent.cross(up).normalized()
+	global_transform = Transform3D(Basis(right, up, -tangent), _world_position())
 
 
 func _build_grass() -> void:
@@ -181,7 +359,7 @@ func _build_big_tree() -> void:
 
 func _build_monster() -> void:
 	var palette: Array[Color] = [Color("8a6fb5"), Color("6f92a8"), Color("b07a68"), Color("8ba86f")]
-	var skin: Color = palette[_seed % palette.size()]
+	var skin: Color = palette[monster_level - 1]
 	var body := SphereMesh.new()
 	body.radius = 0.26
 	body.height = 0.44

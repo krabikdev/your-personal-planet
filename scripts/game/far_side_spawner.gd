@@ -182,11 +182,18 @@ func _place(kind: int, direction: Vector3, level: int = 1) -> DecorProp:
 	prop.setup(kind, randi(), level)
 	prop.anchor_dir = direction.normalized()
 	_settle(prop)
+	if kind == Kind.MONSTER:
+		prop.configure_monster(planet, player, level)
+	prop.tree_exiting.connect(_on_prop_exiting.bind(prop), CONNECT_ONE_SHOT)
 	_props.append(prop)
 	if _props.size() > MAX_PROPS:
 		var oldest: DecorProp = _props.pop_front()
 		oldest.queue_free()
 	return prop
+
+
+func _on_prop_exiting(prop: DecorProp) -> void:
+	_props.erase(prop)
 
 
 func _settle(prop: DecorProp) -> void:

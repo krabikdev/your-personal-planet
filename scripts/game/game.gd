@@ -74,6 +74,7 @@ func _ready() -> void:
 	_far_side.setup(_planet, _player)
 
 	_player.cold_changed.connect(_on_cold_changed)
+	_player.health_changed.connect(_on_health_changed)
 	_player.froze.connect(_on_froze)
 	_player.landed.connect(_on_player_landed)
 	_planet.growth_finished.connect(_on_growth_finished)
@@ -93,6 +94,7 @@ func _ready() -> void:
 	_update_stats()
 	_hud.set_inventory_count(0)
 	_refresh_water()
+	_hud.set_health(_player.get_health(), _player.get_max_health())
 	_hud.fade_controls()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -384,6 +386,12 @@ func _on_cold_changed(amount: float) -> void:
 		return
 	# The icy screen is a death effect, not a warning: it stays off while alive.
 	_hud.set_cold(amount)
+
+
+func _on_health_changed(current: float, maximum: float) -> void:
+	if _state == State.DEAD:
+		return
+	_hud.set_health(current, maximum)
 
 
 func _on_player_landed(strength: float) -> void:
