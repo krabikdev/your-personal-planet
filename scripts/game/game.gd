@@ -65,9 +65,7 @@ func _ready() -> void:
 	_player.froze.connect(_on_froze)
 	_player.landed.connect(_on_player_landed)
 	_planet.growth_finished.connect(_on_growth_finished)
-	_debris.catch_window_changed.connect(_on_catch_window_changed)
 	_debris.caught.connect(_on_debris_caught)
-	_debris.missed.connect(_on_debris_missed)
 	_hud.inventory_requested.connect(_toggle_inventory)
 	_inventory_ui.use_requested.connect(_on_inventory_use)
 	_inventory_ui.closed.connect(_on_inventory_closed)
@@ -174,7 +172,6 @@ func _toggle_inventory() -> void:
 	if _state != State.PLAYING:
 		return
 	_state = State.INVENTORY
-	_player.set_catch_hint(false)
 	_inventory_ui.open(_model.items, _planet.radius)
 	_hud.visible = false
 	get_tree().paused = true
@@ -187,7 +184,6 @@ func _on_inventory_closed() -> void:
 	get_tree().paused = false
 	_state = State.PLAYING
 	_hud.visible = true
-	_player.set_catch_hint(_debris.get_catch_available())
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -216,7 +212,6 @@ func _start_apply(stone: StoneItem) -> void:
 	_stones_used += 1
 	_was_safe_before_growth = _planet.is_jump_safe()
 	_hud.set_inventory_count(_model.size())
-	_player.set_catch_hint(false)
 	_player.start_smearing()
 	_camera_rig.set_focus(1.55)
 	AudioDirector.play_sfx("smear", 0.0, 0.5)
@@ -307,18 +302,10 @@ func _set_frost_progress(value: float) -> void:
 		_frost_material.set_shader_parameter("progress", clampf(value, 0.0, 1.0))
 
 
-func _on_catch_window_changed(available: bool) -> void:
-	if _state != State.PLAYING:
-		_player.set_catch_hint(false)
-		return
-	_player.set_catch_hint(available)
-
-
 func _on_debris_caught(kind: int, size_factor: float, shape_seed: int) -> void:
 	var stone := StoneItem.new(kind, size_factor, shape_seed)
 	_model.add(stone)
 	_hud.set_inventory_count(_model.size())
-	_player.set_catch_hint(false)
 	_hud.show_toast(
 		"%s у сумці · %.1f ×  (I — відкрити)" % [stone.display_name(), size_factor],
 		stone.accent_color(),
@@ -326,15 +313,10 @@ func _on_debris_caught(kind: int, size_factor: float, shape_seed: int) -> void:
 	)
 
 
-func _on_debris_missed() -> void:
-	_player.set_catch_hint(false)
-
-
 func _open_pause() -> void:
 	if _state != State.PLAYING:
 		return
 	_state = State.PAUSED
-	_player.set_catch_hint(false)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_pause_menu.open()
@@ -344,7 +326,6 @@ func _on_pause_resume() -> void:
 	_pause_menu.close()
 	get_tree().paused = false
 	_state = State.PLAYING
-	_player.set_catch_hint(_debris.get_catch_available())
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 

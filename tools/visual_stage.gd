@@ -61,6 +61,22 @@ func _setup() -> void:
 			skel_rig.base_lift = 1.7
 			skel_rig.base_distance = 3.6
 			await get_tree().create_timer(0.6).timeout
+		"skeleton_close":
+			var close_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			var close_prop: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
+			var close_player: Boy = game.get_node("Player") as Boy
+			var close_planet: Planet = game.get_node("Planet") as Planet
+			close_prop.set_process(false)
+			close_player.global_position = (
+				close_prop.global_position
+				- close_prop.global_transform.basis.z * 1.4
+				+ close_prop.global_transform.basis.y * 0.2
+			)
+			close_player.snap_to_surface()
+			close_rig.setup(close_prop, close_planet)
+			close_rig.base_lift = 1.0
+			close_rig.base_distance = 1.7
+			await get_tree().create_timer(0.6).timeout
 		"skeleton_sink":
 			var sink_rig: CameraRig = game.get_node("CameraRig") as CameraRig
 			var sink_prop: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
@@ -94,43 +110,12 @@ func _setup() -> void:
 			var up: Vector3 = (point - planet.get_center()).normalized()
 			player.global_position = point + up * 0.06
 			player.snap_to_surface()
-			for _i: int in 160:
-				if catcher.get_catch_available():
-					break
-				await get_tree().create_timer(0.05).timeout
-			print("CATCH WINDOW: ", catcher.get_catch_available())
-			await get_tree().create_timer(0.05).timeout
-			var press_click := InputEventMouseButton.new()
-			press_click.button_index = MOUSE_BUTTON_LEFT
-			press_click.pressed = true
-			Input.parse_input_event(press_click)
-			await get_tree().create_timer(0.12).timeout
-			var release_click := InputEventMouseButton.new()
-			release_click.button_index = MOUSE_BUTTON_LEFT
-			release_click.pressed = false
-			Input.parse_input_event(release_click)
-			await get_tree().create_timer(0.4).timeout
+			await get_tree().create_timer(0.8).timeout
 			print("CATCH RESULT (bag size): ", game.get_inventory_model().size())
 		"look":
 			var look_rig: CameraRig = game.get_node("CameraRig") as CameraRig
 			look_rig.orbit_by(500.0)
 			await get_tree().create_timer(0.6).timeout
-		"hint":
-			var hint_catcher: DebrisManager = game.get_node("DebrisManager") as DebrisManager
-			hint_catcher.force_spawn(0.5)
-			await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.4).timeout
-			hint_catcher.debug_place_at(-2.0)
-			var hint_planet: Planet = game.get_node("Planet") as Planet
-			var hint_player: Boy = game.get_node("Player") as Boy
-			var hint_point: Vector3 = hint_catcher.debug_closest_point()
-			var hint_up: Vector3 = (hint_point - hint_planet.get_center()).normalized()
-			hint_player.global_position = hint_point + hint_up * 0.06
-			hint_player.snap_to_surface()
-			for _i: int in 160:
-				if hint_catcher.get_catch_available():
-					break
-				await get_tree().create_timer(0.05).timeout
-			await get_tree().create_timer(0.35).timeout
 		"swing":
 			var swing_rig: CameraRig = game.get_node("CameraRig") as CameraRig
 			swing_rig.base_lift = 1.3

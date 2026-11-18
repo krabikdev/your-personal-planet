@@ -21,7 +21,6 @@ const CORD_COLOR := Color("5a4630")
 var planet: Planet
 var player: Boy
 
-var _initial_radius: float = 5.0
 var _origin_distance: float = 5.0
 var _ground_up: Vector3 = Vector3.UP
 var _can: Node3D
@@ -34,7 +33,6 @@ var _buried: bool = false
 func setup(p_planet: Planet, p_player: Boy) -> void:
 	planet = p_planet
 	player = p_player
-	_initial_radius = planet.radius
 	_origin_distance = planet.radius
 	_ground_up = player.get_up()
 
@@ -104,15 +102,9 @@ func _process(_delta: float) -> void:
 func _on_radius_changed(new_radius: float) -> void:
 	if _buried or planet == null:
 		return
-	var growth: float = new_radius - _initial_radius
-	if growth <= 0.0:
-		return
-	# Slide the remains down a little faster than the ground climbs, so the
-	# bones visibly sink before the new surface swallows them.
-	var sink: float = minf(growth * 0.4, BURY_DEPTH)
-	var distance: float = _origin_distance - sink
-	global_position = planet.get_center() + _ground_up * distance
-	if planet.radius - distance >= BURY_DEPTH:
+	# The remains never move: the growing ground itself climbs over them, so a
+	# bigger planet simply swallows the skeleton where it lies.
+	if new_radius - _origin_distance >= BURY_DEPTH:
 		_buried = true
 		visible = false
 		set_process(false)
@@ -153,11 +145,11 @@ func _build_skull(bone: StandardMaterial3D, joint: StandardMaterial3D) -> void:
 	skull.height = 0.26
 	skull.radial_segments = 16
 	skull.rings = 8
-	_add_mesh(self, skull, bone, Vector3(-0.86, 0.12, 0.0), Vector3(1.15, 0.85, 0.95))
+	_add_mesh(self, skull, bone, Vector3(-0.86, 0.105, 0.0), Vector3(1.15, 0.85, 0.95))
 
 	var jaw := BoxMesh.new()
 	jaw.size = Vector3(0.13, 0.05, 0.16)
-	_add_mesh(self, jaw, joint, Vector3(-0.98, 0.055, 0.0), Vector3(1.0, 1.0, 1.0))
+	_add_mesh(self, jaw, joint, Vector3(-0.98, 0.032, 0.0), Vector3(1.0, 1.0, 1.0))
 
 	var socket := SphereMesh.new()
 	socket.radius = 0.028
@@ -165,16 +157,18 @@ func _build_skull(bone: StandardMaterial3D, joint: StandardMaterial3D) -> void:
 	socket.radial_segments = 8
 	socket.rings = 4
 	var dark: StandardMaterial3D = _material(Color("2c2724"), 0.9, 0.0)
-	_add_mesh(self, socket, dark, Vector3(-0.9, 0.205, 0.048), Vector3.ONE)
-	_add_mesh(self, socket, dark, Vector3(-0.9, 0.205, -0.048), Vector3.ONE)
-	_add_mesh(self, socket, dark, Vector3(-0.97, 0.16, 0.0), Vector3(0.55, 0.7, 0.55))
+	_add_mesh(self, socket, dark, Vector3(-0.9, 0.19, 0.048), Vector3.ONE)
+	_add_mesh(self, socket, dark, Vector3(-0.9, 0.19, -0.048), Vector3.ONE)
+	_add_mesh(self, socket, dark, Vector3(-0.97, 0.145, 0.0), Vector3(0.55, 0.7, 0.55))
 
 	# A cracked collarbone for a little storytelling.
-	_bone(Vector3(-0.76, 0.06, -0.14), Vector3(-0.66, 0.07, 0.12), 0.012, bone)
+	_bone(Vector3(-0.76, 0.022, -0.14), Vector3(-0.66, 0.026, 0.12), 0.012, bone)
 
 
 func _build_spine(bone: StandardMaterial3D, joint: StandardMaterial3D) -> void:
-	_bone(Vector3(-0.75, 0.075, 0.0), Vector3(-0.04, 0.075, 0.0), 0.026, bone)
+	# Every bone is laid on the ground line: the spine rests at its own radius,
+	# so nothing floats above the dust.
+	_bone(Vector3(-0.75, 0.03, 0.0), Vector3(-0.04, 0.03, 0.0), 0.026, bone)
 	for i: int in 4:
 		var x: float = -0.58 + float(i) * 0.125
 		var ribs := TorusMesh.new()
@@ -185,22 +179,23 @@ func _build_spine(bone: StandardMaterial3D, joint: StandardMaterial3D) -> void:
 		var node := MeshInstance3D.new()
 		node.mesh = ribs
 		node.material_override = bone
-		node.transform = Transform3D(Basis(Vector3.BACK, deg_to_rad(90.0)), Vector3(x, 0.085, 0.0))
-		node.scale = Vector3(1.0, 1.0, 0.72)
+		node.transform = Transform3D(Basis(Vector3.BACK, deg_to_rad(90.0)), Vector3(x, 0.052, 0.0))
+		# Squashed along the mesh X axis, which becomes "up" after the rotation.
+		node.scale = Vector3(0.34, 1.0, 0.85)
 		add_child(node)
 	var joint_mesh := SphereMesh.new()
 	joint_mesh.radius = 0.042
 	joint_mesh.height = 0.084
 	joint_mesh.radial_segments = 8
 	joint_mesh.rings = 4
-	_add_mesh(self, joint_mesh, joint, Vector3(0.04, 0.08, 0.0), Vector3(1.2, 0.8, 1.0))
+	_add_mesh(self, joint_mesh, joint, Vector3(0.04, 0.045, 0.0), Vector3(1.2, 0.8, 1.0))
 
 
 func _build_arms(bone: StandardMaterial3D, joint: StandardMaterial3D) -> void:
 	for side: float in [-1.0, 1.0]:
-		var shoulder := Vector3(-0.56, 0.06, 0.19 * side)
-		var elbow := Vector3(-0.32, 0.055, 0.44 * side)
-		var wrist := Vector3(-0.1, 0.05, 0.61 * side)
+		var shoulder := Vector3(-0.56, 0.032, 0.19 * side)
+		var elbow := Vector3(-0.32, 0.03, 0.44 * side)
+		var wrist := Vector3(-0.1, 0.028, 0.61 * side)
 		_bone(shoulder, elbow, 0.019, bone)
 		_bone(elbow, wrist, 0.016, bone)
 		_joint(elbow, 0.026, joint)
@@ -217,9 +212,9 @@ func _build_arms(bone: StandardMaterial3D, joint: StandardMaterial3D) -> void:
 
 func _build_legs(bone: StandardMaterial3D, joint: StandardMaterial3D) -> void:
 	for side: float in [-1.0, 1.0]:
-		var hip := Vector3(0.1, 0.06, 0.13 * side)
-		var knee := Vector3(0.47, 0.055, 0.14 * side)
-		var ankle := Vector3(0.82, 0.05, 0.14 * side)
+		var hip := Vector3(0.1, 0.032, 0.13 * side)
+		var knee := Vector3(0.47, 0.03, 0.14 * side)
+		var ankle := Vector3(0.82, 0.028, 0.14 * side)
 		_bone(hip, knee, 0.024, bone)
 		_bone(knee, ankle, 0.02, bone)
 		_joint(knee, 0.034, joint)
@@ -235,7 +230,7 @@ func _build_pelvis(joint: StandardMaterial3D) -> void:
 	pelvis.height = 0.17
 	pelvis.radial_segments = 12
 	pelvis.rings = 6
-	_add_mesh(self, pelvis, joint, Vector3(0.05, 0.08, 0.0), Vector3(1.25, 0.62, 1.0))
+	_add_mesh(self, pelvis, joint, Vector3(0.05, 0.055, 0.0), Vector3(1.25, 0.62, 1.0))
 
 
 func _build_can(parent: Node3D, metal: StandardMaterial3D, rust: StandardMaterial3D) -> void:

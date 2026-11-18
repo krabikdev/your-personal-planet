@@ -7,7 +7,6 @@ extends Node3D
 ## no hint and no flight sound: the player has to watch the sky.
 
 signal warning_cleared
-signal catch_window_changed(available: bool)
 signal caught(kind: int, size_factor: float, shape_seed: int)
 signal missed
 
@@ -24,8 +23,7 @@ const SPAWN_FADE_TIME: float = 1.8
 const MIN_SIZE: float = 0.5
 const MAX_SIZE: float = 1.5
 const FAR_ALTITUDE_FRACTION: float = 0.9
-const CATCH_PROMPT_DISTANCE: float = 3.0
-const NET_CATCH_RADIUS: float = 1.1
+const NET_CATCH_RADIUS: float = 1.9
 
 var planet: Planet
 var player: Boy
@@ -45,7 +43,6 @@ var _debris: Node3D
 var _trail: GPUParticles3D
 var _spin_axis: Vector3 = Vector3.UP
 var _spin_speed: float = 1.0
-var _can_catch: bool = false
 var _glow_texture: GradientTexture2D
 var _flight_altitude: float = FLIGHT_ALTITUDE
 var _appear: float = 0.0
@@ -102,10 +99,6 @@ func is_active() -> bool:
 	return _phase != Phase.IDLE
 
 
-func get_catch_available() -> bool:
-	return _can_catch
-
-
 func debug_closest_point() -> Vector3:
 	return _surface_point(0.0)
 
@@ -124,7 +117,6 @@ func _catch_with_net() -> void:
 	if _phase != Phase.FLYING:
 		return
 	_phase = Phase.CAUGHT
-	_set_catch_available(false)
 	caught.emit(_kind, _size, _shape_seed)
 	AudioDirector.play_sfx("catch", 0.03, 1.0)
 	if _debris != null:
@@ -229,9 +221,6 @@ func _update_flight(delta: float) -> void:
 		_trail.global_position = _surface_point(_along)
 		_trail.emitting = _appear > 0.3
 
-	var near_boy: bool = _player_debris_distance() < CATCH_PROMPT_DISTANCE
-	_set_catch_available(near_boy)
-
 	if _try_catch():
 		return
 
@@ -259,19 +248,6 @@ func _surface_point(along: float) -> Vector3:
 	var radius: float = base_radius + APPROACH_LIFT * approach
 	var angle: float = along / maxf(base_radius, 1.0)
 	return planet.get_center() + _target_dir.rotated(_axis, angle) * radius
-
-
-func _player_debris_distance() -> float:
-	if _debris != null:
-		return player.global_position.distance_to(_debris.global_position)
-	return player.global_position.distance_to(_surface_point(_along))
-
-
-func _set_catch_available(value: bool) -> void:
-	if value == _can_catch:
-		return
-	_can_catch = value
-	catch_window_changed.emit(value)
 
 
 func _build_debris() -> void:
@@ -433,7 +409,6 @@ func _finish_caught() -> void:
 
 
 func _clear_event() -> void:
-	_set_catch_available(false)
 	if _debris != null:
 		_debris.queue_free()
 		_debris = null

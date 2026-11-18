@@ -24,7 +24,6 @@ const ROPE_MAX_COLD: float = 0.9
 @export var coyote_time: float = 0.12
 @export var jump_buffer_time: float = 0.14
 @export var cold_seconds: float = 4.0
-@export var catch_hint_height: float = 1.75
 
 var planet: Planet
 var camera_rig: Node3D
@@ -44,13 +43,11 @@ var _rope_crawl: bool = false
 var _rope_brake_latch: bool = false
 var _rope_recoil: float = 0.0
 var _winch_active: bool = false
-var _hint_time: float = 0.0
 var _streams: Dictionary[String, AudioStream] = {}
 
 @onready var _model: PrinceModel = %Visual
 @onready var _audio: AudioStreamPlayer3D = %Audio
 @onready var _winch: AudioStreamPlayer3D = %Winch
-@onready var _catch_hint: Node3D = %CatchHint
 
 
 func _ready() -> void:
@@ -82,22 +79,6 @@ func _setup_winch() -> void:
 
 func is_winching() -> bool:
 	return _winch_active
-
-
-func _process(delta: float) -> void:
-	if _catch_hint == null or not _catch_hint.visible:
-		return
-	_hint_time += delta
-	_catch_hint.position.y = catch_hint_height + sin(_hint_time * 2.6) * 0.05
-	var pulse: float = 1.0 + sin(_hint_time * 4.2) * 0.045
-	_catch_hint.scale = Vector3.ONE * pulse
-
-
-func set_catch_hint(value: bool) -> void:
-	if _catch_hint == null or value == _catch_hint.visible:
-		return
-	_catch_hint.visible = value
-	_hint_time = 0.0
 
 
 func set_planet(value: Planet) -> void:
@@ -178,7 +159,6 @@ func start_smearing() -> void:
 	locked = true
 	smearing = true
 	velocity = Vector3.ZERO
-	set_catch_hint(false)
 	_set_winch_playing(false)
 	_model.set_smearing(true)
 
@@ -203,7 +183,6 @@ func freeze() -> void:
 		return
 	dead = true
 	locked = true
-	set_catch_hint(false)
 	_set_winch_playing(false)
 	_model.set_sitting(false)
 	_model.set_smearing(false)
