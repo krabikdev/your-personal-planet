@@ -113,22 +113,15 @@ func test_boy_can_walk_across_the_surface() -> void:
 	)
 
 
-func test_catch_hint_floats_above_the_boy() -> void:
+func test_the_boy_has_no_debris_hint() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game
 	add_child_autofree(game)
 	await wait_process_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
-	var hint: Node3D = player.get_node("CatchHint") as Node3D
-	assert_not_null(hint, "the catch hint should be part of the boy")
-	assert_gt(hint.position.y, 1.2, "the hint should sit above his head")
-	assert_false(hint.visible, "the hint starts hidden")
-
-	player.set_catch_hint(true)
-	assert_true(hint.visible, "the hint should appear while the debris is near")
-	player.set_catch_hint(false)
-	assert_false(hint.visible, "the hint should disappear when the debris leaves")
+	assert_null(player.get_node_or_null("CatchHint"), "the floating junk hint is gone")
+	assert_false(player.has_method("set_catch_hint"), "there is no catch hint API any more")
 
 
 func test_debris_countdown_is_5_to_10_seconds() -> void:
@@ -247,6 +240,23 @@ func test_debris_is_caught_without_pressing_the_net() -> void:
 	assert_eq(
 		debris._phase, DebrisManager.Phase.CAUGHT, "the flyby should switch to the caught phase"
 	)
+
+
+func test_the_net_reaches_farther_than_before() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
+	debris.force_spawn(0.5)
+	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.2).timeout
+
+	assert_gt(DebrisManager.NET_CATCH_RADIUS, 1.5, "the catch radius should be generous")
+	var node: Node3D = debris.get_node("Debris") as Node3D
+	node.global_position = player.get_net_catch_point() + player.get_up() * 1.7
+	assert_true(debris._try_catch(), "a net almost two metres away should still scoop the junk")
 
 
 func test_hud_planet_size_is_just_a_value() -> void:
@@ -448,7 +458,7 @@ func test_skeleton_finds_can_be_picked_up() -> void:
 	assert_eq(model.items[1].kind, StoneItem.Kind.POUCH)
 
 
-func test_the_skeleton_sinks_away_as_the_planet_grows() -> void:
+func test_the_skeleton_stays_put_and_is_swallowed_as_the_planet_grows() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game
 	add_child_autofree(game)
@@ -456,18 +466,57 @@ func test_the_skeleton_sinks_away_as_the_planet_grows() -> void:
 
 	var skeleton: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
 	var planet: Planet = game.get_node("Planet") as Planet
-	var start_distance: float = skeleton.global_position.distance_to(planet.get_center())
+	var start_position: Vector3 = skeleton.global_position
+	var start_distance: float = start_position.distance_to(planet.get_center())
 
 	planet.apply_radius(PlanetProfile.BASE_RADIUS + 0.25)
 	await wait_process_frames(2)
 	assert_lt(
-		skeleton.global_position.distance_to(planet.get_center()),
-		start_distance,
-		"the growing ground should pull the skeleton under"
+		skeleton.global_position.distance_to(start_position),
+		0.001,
+		"the skeleton should stay exactly where it lies"
 	)
+	assert_lt(start_distance, planet.radius, "the risen ground should already cover the bones")
 	assert_false(skeleton.is_buried(), "a little growth should not hide it yet")
 
 	planet.apply_radius(PlanetProfile.BASE_RADIUS + 0.8)
 	await wait_process_frames(2)
 	assert_true(skeleton.is_buried(), "enough growth should swallow the skeleton")
 	assert_false(skeleton.visible, "a buried skeleton should not be drawn")
+
+
+func test_the_bones_lie_flat_on_the_dust() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var skeleton: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
+	var resting: int = 0
+	var lowest: float = 10.0
+	var spine: MeshInstance3D = null
+	var longest: float = 0.0
+	for child: Node in skeleton.get_children():
+		if not (child is MeshInstance3D):
+			continue
+		var node := child as MeshInstance3D
+		if node.mesh == null:
+			continue
+		var ground_y: float = (node.transform * node.mesh.get_aabb()).position.y
+		lowest = minf(lowest, ground_y)
+		if ground_y <= 0.02:
+			resting += 1
+		if node.mesh is CylinderMesh:
+			var cylinder := node.mesh as CylinderMesh
+			if cylinder.height > longest:
+				longest = cylinder.height
+				spine = node
+
+	assert_not_null(spine, "the skeleton should have a spine")
+	assert_lte(
+		(spine.transform * spine.mesh.get_aabb()).position.y,
+		0.03,
+		"the spine must rest on the dust, not float above it"
+	)
+	assert_lt(lowest, 0.01, "at least some bones should touch the ground")
+	assert_gte(resting, 20, "almost every bone should lie flat instead of floating")
