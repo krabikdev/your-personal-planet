@@ -18,8 +18,6 @@ const STAKE_HEIGHT: float = 0.5
 const STAKE_SINK: float = 0.06
 const ROPE_RADIUS: float = 0.01
 const ROPE_POINTS_MAX: int = 96
-const ROPE_DRAW_MAX: int = 512
-const ROPE_DRAW_STEP: float = 0.35
 const ROPE_REEL_SPAN: float = 6.0
 const ROPE_MIN_SPACING: float = 0.5
 const ROPE_SPACING_RATIO: float = 0.02
@@ -44,7 +42,6 @@ var _anchor: Vector3 = Vector3.ZERO
 var _stake: Node3D
 var _rope: MultiMeshInstance3D
 var _points: PackedVector3Array = PackedVector3Array()
-var _render_points: PackedVector3Array = PackedVector3Array()
 var _reel: Vector3 = Vector3.ZERO
 var _previous: PackedVector3Array = PackedVector3Array()
 var _segment: float = 0.25
@@ -69,10 +66,6 @@ func get_anchor_position() -> Vector3:
 
 func get_rope_points() -> PackedVector3Array:
 	return _points
-
-
-func get_rope_render_points() -> PackedVector3Array:
-	return _render_points
 
 
 ## The way home is along the cord, not through the air to the stake: the first
@@ -256,12 +249,12 @@ func _build_rope() -> void:
 	segment.top_radius = ROPE_RADIUS
 	segment.bottom_radius = ROPE_RADIUS
 	segment.height = 1.0
-	segment.radial_segments = 10
+	segment.radial_segments = 6
 	segment.rings = 1
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.mesh = segment
-	multimesh.instance_count = ROPE_DRAW_MAX
+	multimesh.instance_count = ROPE_POINTS_MAX
 	_rope.multimesh = multimesh
 	add_child(_rope)
 	_hide_segments(0)
@@ -377,67 +370,23 @@ func _drag_on_ground(delta: float, centre: Vector3, contact: float) -> void:
 func _draw_rope() -> void:
 	if _rope == null:
 		return
-	_render_points = _smooth_points()
-	var segments: int = mini(_render_points.size() - 1, ROPE_DRAW_MAX)
+	var segments: int = mini(_points.size() - 1, ROPE_POINTS_MAX)
 	for index: int in segments:
-		var a: Vector3 = _render_points[index]
-		var b: Vector3 = _render_points[index + 1]
+		var a: Vector3 = _points[index]
+		var b: Vector3 = _points[index + 1]
 		var span: Vector3 = b - a
 		var length: float = span.length()
 		if length < 0.0005:
 			_rope.multimesh.set_instance_transform(index, _hidden_transform())
 			continue
-		# Overlap the caps a little so the joints read as one cord.
-		length += ROPE_RADIUS
 		var basis: Basis = (
-			Basis(Quaternion(Vector3.UP, span / span.length()))
+			Basis(Quaternion(Vector3.UP, span / length))
 			* Basis.from_scale(Vector3(1.0, length, 1.0))
 		)
 		_rope.multimesh.set_instance_transform(index, Transform3D(basis, (a + b) * 0.5))
 	if segments < _shown:
 		_hide_segments(segments)
 	_shown = segments
-
-
-## The simulated chain is coarse on purpose: ninety odd masses is enough to
-## hold the shape. Drawing it straight is what makes a long rope look like a
-## row of sticks, so the rendered cord is a curve through those masses, cut
-## into short pieces.
-func _smooth_points() -> PackedVector3Array:
-	var count: int = _points.size()
-	var smoothed: PackedVector3Array = PackedVector3Array()
-	if count < 4:
-		return _points.duplicate()
-	var length: float = 0.0
-	for index: int in count - 1:
-		length += _points[index].distance_to(_points[index + 1])
-	var segments: int = clampi(int(ceil(length / ROPE_DRAW_STEP)), count - 1, ROPE_DRAW_MAX)
-	smoothed.resize(segments + 1)
-	var span: float = float(count - 1)
-	for step: int in segments + 1:
-		var position: float = span * float(step) / float(segments)
-		var index: int = mini(int(position), count - 2)
-		var blend: float = position - float(index)
-		var before: Vector3 = _points[maxi(index - 1, 0)]
-		var from: Vector3 = _points[index]
-		var to: Vector3 = _points[index + 1]
-		var after: Vector3 = _points[mini(index + 2, count - 1)]
-		smoothed[step] = _catmull(before, from, to, after, blend)
-	return smoothed
-
-
-func _catmull(before: Vector3, from: Vector3, to: Vector3, after: Vector3, blend: float) -> Vector3:
-	var squared: float = blend * blend
-	var cubed: float = squared * blend
-	return (
-		0.5
-		* (
-			(2.0 * from)
-			+ (-before + to) * blend
-			+ (2.0 * before - 5.0 * from + 4.0 * to - after) * squared
-			+ (-before + 3.0 * from - 3.0 * to + after) * cubed
-		)
-	)
 
 
 ## The starting shape the chain is handed on the first frame: off the stake,
@@ -493,7 +442,7 @@ func _resample(path: PackedVector3Array, count: int) -> PackedVector3Array:
 
 func _hide_segments(from: int) -> void:
 	var hidden: Transform3D = _hidden_transform()
-	for index: int in range(from, ROPE_DRAW_MAX):
+	for index: int in range(from, ROPE_POINTS_MAX):
 		_rope.multimesh.set_instance_transform(index, hidden)
 	_shown = from
 

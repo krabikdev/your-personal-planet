@@ -225,9 +225,16 @@ if [ "$run_tests" -eq 1 ]; then
     tests=${tests:-0}
     passing=${passing:-0}
     failing=${failing:-0}
+    # GUT quietly skips a test script it cannot parse, which would shrink the
+    # suite without failing it. Treat that as a failure of its own.
+    unloaded=$(printf '%s\n' "$gut_clean" | grep -A1 -E 'Ignoring script|Failed to load script' | head -n 6)
 
-    if [ "$gut_exit" -ne 0 ] || [ "$failing" -gt 0 ] || [ "$tests" -eq 0 ]; then
+    if [ "$gut_exit" -ne 0 ] || [ "$failing" -gt 0 ] || [ "$tests" -eq 0 ] || [ -n "$unloaded" ]; then
         printf '%s\n' "$gut_output"
+        if [ -n "$unloaded" ]; then
+            echo "A test script could not be loaded, so the suite is smaller than it claims:" >&2
+            printf '%s\n' "$unloaded" | sed 's/^/  /' >&2
+        fi
         echo "GUT: tests=$tests passing=$passing failing=$failing exit=$gut_exit" >&2
         [ "$tests" -eq 0 ] && echo "No tests were collected from res://tests." >&2
         add_result gut FAIL "tests=$tests failing=$failing exit=$gut_exit" "$(elapsed "$started")"
