@@ -101,6 +101,9 @@ PLANET_GPU=0 ./scripts/run.sh    # примусово інтегрована GPU
   інвентар, камера, модель хлопчика, процедурні форми сміття.
 - `scripts/ui/` — HUD, сумка, пауза, game over, налаштування.
 - `shaders/` — процедурний скайбокс, поверхня планети, мороз і фон меню.
+- `assets/fonts/` — Underdog, комічний шрифт із повною кирилицею; тема бере з
+  нього всі накреслення й підсилює їх (SIL Open Font License, текст у
+  `assets/fonts/OFL.txt`).
 - `assets/audio/` — процедурно згенеровані музика й звуки
   (`python tools/generate_audio.py` створює їх заново).
 - `tests/` — GUT-тести математики планети, інвентаря, меню й сцени гри.
@@ -112,5 +115,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1
 ```
 
 Скрипт перевіряє форматування, лінт, завантаження проєкту та GUT-тести
-(88 тестів). Для візуальної перевірки є `tools/visual_stage.tscn` і
+(97 тестів). Для візуальної перевірки є `tools/visual_stage.tscn` і
 `tools/menu_stage.tscn` — їх можна записати через `--write-movie`.
