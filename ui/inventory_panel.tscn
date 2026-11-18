@@ -74,7 +74,7 @@ text = "Сумка"
 [node name="Subtitle" type="Label" parent="Overlay/Margin/Center/Panel/PanelMargin/VBox/Header/Heading"]
 layout_mode = 2
 theme_type_variation = &"Subtitle"
-text = "каміння, зібране з орбіти"
+text = "каміння та знахідки"
 
 [node name="CountLabel" type="Label" parent="Overlay/Margin/Center/Panel/PanelMargin/VBox/Header"]
 unique_name_in_owner = true
@@ -117,7 +117,9 @@ size_flags_vertical = 3
 text = "Тут поки порожньо.
 
 Коли космічне сміття пролітатиме поруч,
-воно саме потрапить у сумку."
+воно саме потрапить у сумку.
+
+Старі речі біля скелета теж можна підібрати."
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3

@@ -1,4 +1,4 @@
-extends GutTest
+extends GutTest  # gdlint:ignore=max-public-methods
 
 const GAME_PATH: String = "res://scenes/game.tscn"
 
@@ -325,3 +325,65 @@ func test_interact_is_mapped_to_the_left_mouse_button() -> void:
 			if button.button_index == MOUSE_BUTTON_LEFT:
 				found_click = true
 	assert_true(found_click, "the net swing should be on the left mouse button")
+
+
+func test_skeleton_lies_near_the_boy_with_its_finds() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var skeleton: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
+	assert_not_null(skeleton, "the starting area should have a skeleton")
+	var player: Boy = game.get_node("Player") as Boy
+	var distance: float = player.global_position.distance_to(skeleton.global_position)
+	assert_gt(distance, 1.0, "the finds should not be picked up instantly")
+	assert_lt(distance, 3.0, "the skeleton should lie right next to the boy")
+	assert_true(skeleton.has_can(), "the watering can should still be lying there")
+	assert_true(skeleton.has_pouch(), "the pouch should still be lying there")
+
+
+func test_skeleton_finds_can_be_picked_up() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var skeleton: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
+	var player: Boy = game.get_node("Player") as Boy
+	var model: InventoryModel = game.get_inventory_model()
+
+	player.global_position = skeleton.get_can_position()
+	await wait_process_frames(2)
+	assert_eq(model.size(), 1, "walking up to the can should add it to the bag")
+	assert_eq(model.items[0].kind, StoneItem.Kind.WATERING_CAN)
+
+	player.global_position = skeleton.get_pouch_position()
+	await wait_process_frames(2)
+	assert_eq(model.size(), 2, "walking up to the pouch should add it too")
+	assert_eq(model.items[1].kind, StoneItem.Kind.POUCH)
+
+
+func test_the_skeleton_sinks_away_as_the_planet_grows() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var skeleton: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
+	var planet: Planet = game.get_node("Planet") as Planet
+	var start_distance: float = skeleton.global_position.distance_to(planet.get_center())
+
+	planet.apply_radius(PlanetProfile.BASE_RADIUS + 0.25)
+	await wait_process_frames(2)
+	assert_lt(
+		skeleton.global_position.distance_to(planet.get_center()),
+		start_distance,
+		"the growing ground should pull the skeleton under"
+	)
+	assert_false(skeleton.is_buried(), "a little growth should not hide it yet")
+
+	planet.apply_radius(PlanetProfile.BASE_RADIUS + 0.8)
+	await wait_process_frames(2)
+	assert_true(skeleton.is_buried(), "enough growth should swallow the skeleton")
+	assert_false(skeleton.visible, "a buried skeleton should not be drawn")

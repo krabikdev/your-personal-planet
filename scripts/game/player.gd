@@ -12,6 +12,7 @@ signal landed(strength: float)
 const ROPE_BOUNCE: float = 0.55
 const ROPE_BRAKE_BOUNCE: float = 0.45
 const ROPE_CRAWL_SPEED: float = 4.05
+const ROPE_MAX_COLD: float = 0.9
 
 @export var walk_speed: float = 3.3
 @export var run_multiplier: float = 1.8
@@ -273,6 +274,7 @@ func _physics_process(delta: float) -> void:
 		velocity = tangent + up * radial
 
 	_update_basis(up)
+	_apply_rope_limit()
 	move_and_slide()
 
 	var after_up: Vector3 = get_up()
@@ -498,6 +500,9 @@ func _update_cold(delta: float) -> void:
 			_cold = maxf(0.0, _cold - delta * 0.85)
 		if altitude > PlanetProfile.death_altitude(planet.radius):
 			_cold = 1.0
+	# A planted stake is a lifeline: while it holds, the cold can never finish him.
+	if rope != null and rope.is_planted():
+		_cold = minf(_cold, ROPE_MAX_COLD)
 	if not is_equal_approx(previous, _cold):
 		_model.set_cold(_cold)
 		cold_changed.emit(_cold)
