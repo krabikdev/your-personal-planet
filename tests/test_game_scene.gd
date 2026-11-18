@@ -51,6 +51,35 @@ func test_frost_effect_only_starts_after_death() -> void:
 	assert_gt(_frost_progress(game), 0.0, "the frost should appear once the boy is dead")
 
 
+func test_the_duke_does_not_pale_in_the_cold() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	var mesh_instance: MeshInstance3D = null
+	for node: Node in player._model.find_children("*", "MeshInstance3D", true, false):
+		var candidate := node as MeshInstance3D
+		if candidate != null and candidate.mesh != null and candidate.mesh.get_surface_count() > 0:
+			mesh_instance = candidate
+			break
+	assert_not_null(mesh_instance, "the duke should have a visible mesh")
+	var material: BaseMaterial3D = mesh_instance.get_active_material(0) as BaseMaterial3D
+	assert_not_null(material, "the duke's mesh should have a material")
+	var before: Color = material.albedo_color
+
+	player._cold = 0.5
+	player.global_position = (
+		planet.get_center() + player.get_up() * (planet.radius + planet.cold_altitude() + 1.0)
+	)
+	player._update_cold(0.4)
+
+	assert_gt(player.get_cold(), 0.5, "the boy should really be colder")
+	assert_eq(material.albedo_color, before, "the duke must not lighten while he is still alive")
+
+
 func test_game_starts_with_empty_inventory() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Node3D = scene.instantiate() as Node3D

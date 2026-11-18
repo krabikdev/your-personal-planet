@@ -5,7 +5,6 @@ signal footstepped(side: int)
 
 const MODEL_SCENE: PackedScene = preload("res://assets/models/pumpkin_duke.glb")
 
-const FROST := Color(0.56, 0.73, 0.82)
 const CROUCH: float = -0.035
 const SIT_CROUCH: float = -0.15
 const SIT_LEAN: float = 0.5
@@ -58,8 +57,6 @@ var _skeleton: Skeleton3D
 var _cloak: PrinceCloak
 var _sprigs: PrinceSprigs
 var _catch_point: Vector3 = Vector3.ZERO
-var _materials: Array[StandardMaterial3D] = []
-var _base_colors: Array[Color] = []
 var _hip_bones: Array[int] = []
 var _knee_bones: Array[int] = []
 var _arm_bones: Array[int] = []
@@ -75,7 +72,6 @@ var _airborne: bool = false
 var _air_time: float = 0.0
 var _running: bool = false
 var _sitting: bool = false
-var _cold: float = 0.0
 var _bob_phase: float = 0.0
 var _gait_phase: float = 0.0
 var _activity: float = 0.0
@@ -164,20 +160,6 @@ func set_smearing(active: bool) -> void:
 
 func is_smearing() -> bool:
 	return _smearing
-
-
-func set_cold(amount: float) -> void:
-	var value: float = clampf(amount, 0.0, 1.0)
-	if is_equal_approx(value, _cold):
-		return
-	_cold = value
-	for i: int in _materials.size():
-		var material: StandardMaterial3D = _materials[i]
-		var base: Color = _base_colors[i]
-		var tinted: Color = base.lerp(FROST, value * 0.72)
-		tinted.a = base.a
-		material.albedo_color = tinted
-		material.emission_energy_multiplier = value * 0.85
 
 
 func play_jump() -> void:
@@ -278,7 +260,6 @@ func _build_rig() -> void:
 	_sprigs.name = "Sprigs"
 	add_child(_sprigs)
 	_sprigs.setup(_skeleton)
-	_collect_materials()
 
 
 func _measure_legs() -> void:
@@ -287,26 +268,6 @@ func _measure_legs() -> void:
 		var hip: Vector3 = _skeleton.get_bone_global_rest(_hip_bones[side]).origin
 		var knee: Vector3 = _skeleton.get_bone_global_rest(_knee_bones[side]).origin
 		_leg_lengths.append(Vector2(hip.distance_to(knee), absf(knee.y)))
-
-
-func _collect_materials() -> void:
-	for node: Node in _rig.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance: MeshInstance3D = node as MeshInstance3D
-		if mesh_instance == null or mesh_instance.mesh == null:
-			continue
-		for surface: int in mesh_instance.mesh.get_surface_count():
-			var source: Material = mesh_instance.get_active_material(surface)
-			if not source is BaseMaterial3D:
-				continue
-			var material: StandardMaterial3D = source.duplicate() as StandardMaterial3D
-			if material == null:
-				continue
-			material.emission_enabled = true
-			material.emission = FROST
-			material.emission_energy_multiplier = 0.0
-			mesh_instance.set_surface_override_material(surface, material)
-			_materials.append(material)
-			_base_colors.append(material.albedo_color)
 
 
 func _place_feet() -> void:
