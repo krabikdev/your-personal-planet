@@ -14,6 +14,7 @@ var _intro_tween: Tween
 @onready var _jump_label: Label = %JumpLabel
 @onready var _safety_label: Label = %SafetyLabel
 @onready var _inventory_button: Button = %InventoryButton
+@onready var _water_label: Label = %WaterLabel
 @onready var _toast_label: Label = %ToastLabel
 @onready var _cold_label: Label = %ColdLabel
 @onready var _intro_panel: Control = %IntroPanel
@@ -48,6 +49,12 @@ func set_planet_stats(radius: float, gravity: float, jump_height: float, safe: b
 
 func set_inventory_count(count: int) -> void:
 	_inventory_button.text = "I   ·   Сумка  %d" % count
+
+
+## The can's own gauge: it is hidden until the boy has actually found the can.
+func set_water(amount: float, has_can: bool) -> void:
+	_water_label.visible = has_can
+	_water_label.text = "Поливалка  %.1f" % maxf(amount, 0.0)
 
 
 func show_toast(text: String, color: Color = Color("f3e7d3"), seconds: float = 3.2) -> void:
@@ -110,6 +117,6 @@ func fade_controls() -> void:
 func _populate_controls() -> void:
 	_controls_label.text = (
 		"WASD  рух     ·     Shift  біг     ·     Пробіл  стрибок     ·     "
-		+ "ПКМ  кілок     ·     ЛКМ  сачок     ·     Q  небо     ·     I  сумка"
+		+ "ПКМ  кілок     ·     ЛКМ  сачок / полив     ·     Q  небо     ·     I  сумка"
 		+ "     ·     Миша  камера"
 	)

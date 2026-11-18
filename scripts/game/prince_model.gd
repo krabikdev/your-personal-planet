@@ -57,11 +57,23 @@ const NET_CATCH_FORWARD: float = 0.35
 const NET_CATCH_HEIGHT: float = 0.35
 const NET_SWING_LIFT: float = 0.9
 
+const WATER_ARM: float = 1.05
+const WATER_RAMP: float = 7.0
+const CAN_TILT: float = 0.62
+const CAN_BODY_COLOR := Color("7f9a90")
+const CAN_RUST_COLOR := Color("8a5a3b")
+const WATER_COLOR := Color(0.62, 0.85, 0.95, 0.85)
+
 var _rig: Node3D
 var _skeleton: Skeleton3D
 var _cloak: PrinceCloak
 var _sprigs: PrinceSprigs
 var _catch_point: Vector3 = Vector3.ZERO
+var _can_attachment: BoneAttachment3D
+var _can: Node3D
+var _can_pour: GPUParticles3D
+var _watering: bool = false
+var _water_amount: float = 0.0
 var _hip_bones: Array[int] = []
 var _knee_bones: Array[int] = []
 var _arm_bones: Array[int] = []
@@ -124,7 +136,9 @@ func _process(delta: float) -> void:
 		_sprigs.set_gait(_activity, _gait_phase)
 	if _cloak != null:
 		_cloak.set_gait(_motion)
+	_update_water(delta)
 	_pose_arms(delta)
+	_update_can()
 	_update_pose(delta)
 	_update_net(delta)
 	if _smear_dust != null:
@@ -242,6 +256,22 @@ func is_net_active() -> bool:
 	return _net_active
 
 
+## The can lives in the right hand only while he is pouring. The pour itself is
+## silent: it is the water the player is watching, not his ears.
+func set_watering(active: bool) -> void:
+	if active == _watering:
+		return
+	_watering = active
+	if _can != null:
+		_can.visible = active
+	if _can_pour != null:
+		_can_pour.emitting = active
+
+
+func is_watering() -> bool:
+	return _watering
+
+
 func get_hand_position() -> Vector3:
 	if _skeleton == null or _claw_bone < 0:
 		return global_position + global_transform.basis.y * NET_CATCH_HEIGHT
@@ -283,6 +313,7 @@ func _build_rig() -> void:
 	_sprigs.name = "Sprigs"
 	add_child(_sprigs)
 	_sprigs.setup(_skeleton)
+	_build_watering_can()
 
 
 func _measure_legs() -> void:
@@ -291,6 +322,134 @@ func _measure_legs() -> void:
 		var hip: Vector3 = _skeleton.get_bone_global_rest(_hip_bones[side]).origin
 		var knee: Vector3 = _skeleton.get_bone_global_rest(_knee_bones[side]).origin
 		_leg_lengths.append(Vector2(hip.distance_to(knee), absf(knee.y)))
+
+
+## A small rusty hand can, hung off the right claw. Its orientation is redone
+## every frame from the body, so it stays upright and readable no matter how the
+## hand bone twists.
+func _build_watering_can() -> void:
+	if _skeleton == null:
+		return
+	var bone: int = _claw_bone
+	if bone < 0:
+		bone = _skeleton.find_bone("arm_R")
+	if bone < 0:
+		return
+	_can_attachment = BoneAttachment3D.new()
+	_can_attachment.name = "CanHand"
+	_can_attachment.bone_name = _skeleton.get_bone_name(bone)
+	_skeleton.add_child(_can_attachment)
+
+	_can = Node3D.new()
+	_can.name = "WateringCan"
+	_can_attachment.add_child(_can)
+	var metal := _flat_material(CAN_BODY_COLOR, 0.4, 0.6)
+	var rust := _flat_material(CAN_RUST_COLOR, 0.92, 0.1)
+
+	var body := CylinderMesh.new()
+	body.top_radius = 0.16
+	body.bottom_radius = 0.18
+	body.height = 0.42
+	body.radial_segments = 14
+	body.rings = 2
+	var body_node := MeshInstance3D.new()
+	body_node.mesh = body
+	body_node.material_override = metal
+	body_node.position = Vector3(0.0, 0.21, 0.0)
+	_can.add_child(body_node)
+
+	var rim := CylinderMesh.new()
+	rim.top_radius = 0.17
+	rim.bottom_radius = 0.17
+	rim.height = 0.04
+	rim.radial_segments = 14
+	rim.rings = 1
+	var rim_node := MeshInstance3D.new()
+	rim_node.mesh = rim
+	rim_node.material_override = rust
+	rim_node.position = Vector3(0.0, 0.43, 0.0)
+	_can.add_child(rim_node)
+
+	var spout := CylinderMesh.new()
+	spout.top_radius = 0.032
+	spout.bottom_radius = 0.06
+	spout.height = 0.46
+	spout.radial_segments = 8
+	spout.rings = 1
+	var spout_node := MeshInstance3D.new()
+	spout_node.mesh = spout
+	spout_node.material_override = rust
+	spout_node.position = Vector3(0.0, 0.3, -0.3)
+	spout_node.rotation_degrees = Vector3(-52.0, 0.0, 0.0)
+	_can.add_child(spout_node)
+
+	var rose := CylinderMesh.new()
+	rose.top_radius = 0.075
+	rose.bottom_radius = 0.035
+	rose.height = 0.07
+	rose.radial_segments = 10
+	rose.rings = 1
+	var rose_node := MeshInstance3D.new()
+	rose_node.mesh = rose
+	rose_node.material_override = rust
+	rose_node.position = Vector3(0.0, 0.44, -0.48)
+	rose_node.rotation_degrees = Vector3(-52.0, 0.0, 0.0)
+	_can.add_child(rose_node)
+
+	var handle := TorusMesh.new()
+	handle.inner_radius = 0.1
+	handle.outer_radius = 0.135
+	handle.rings = 12
+	handle.ring_segments = 6
+	var handle_node := MeshInstance3D.new()
+	handle_node.mesh = handle
+	handle_node.material_override = metal
+	handle_node.position = Vector3(0.0, 0.4, 0.04)
+	handle_node.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+	_can.add_child(handle_node)
+
+	_can_pour = GPUParticles3D.new()
+	_can_pour.name = "Pour"
+	_can_pour.amount = 26
+	_can_pour.lifetime = 0.55
+	_can_pour.local_coords = false
+	_can_pour.emitting = false
+	_can_pour.position = Vector3(0.0, 0.46, -0.52)
+	var drop := QuadMesh.new()
+	drop.size = Vector2(0.07, 0.07)
+	drop.material = _particle_material(_soft_dot_texture())
+	_can_pour.draw_pass_1 = drop
+	var pour := _particle_process(WATER_COLOR, 0.7, 1.3, Vector3(0.0, -1.0, -0.35))
+	pour.spread = 9.0
+	pour.gravity = Vector3(0.0, -7.5, 0.0)
+	pour.scale_min = 0.5
+	pour.scale_max = 1.1
+	_can_pour.process_material = pour
+	_can.add_child(_can_pour)
+
+	_can.visible = false
+
+
+func _update_water(delta: float) -> void:
+	_water_amount = lerpf(_water_amount, 1.0 if _watering else 0.0, 1.0 - exp(-WATER_RAMP * delta))
+
+
+## Keeps the can in the claw but upright with the body, tilted forward to pour.
+func _update_can() -> void:
+	if _can == null or _can_attachment == null:
+		return
+	var hand: Vector3 = _can_attachment.global_position
+	var basis: Basis = global_transform.basis.orthonormalized()
+	var tilt: Basis = Basis(Vector3.RIGHT, -CAN_TILT * _water_amount)
+	_can.global_transform = Transform3D(basis * tilt, hand)
+
+
+func _flat_material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = roughness
+	material.metallic = metallic
+	return material
 
 
 func _place_feet() -> void:
@@ -400,8 +559,12 @@ func _pose_arms(delta: float) -> void:
 		var direction: float = -1.0 if side == 0 else 1.0
 		var angle: float = _arm_swing * direction * (1.0 - _catch_amount)
 		angle *= 1.0 - _smear_amount
+		angle *= 1.0 - _water_amount
 		angle += CATCH_ARM * _catch_amount + SMEAR_ARM * _smear_amount
 		angle += HAMMER_ARM * _hammer_amount
+		if side == 1:
+			# The right arm holds the can out in front while the water runs.
+			angle += WATER_ARM * _water_amount
 		_swing_bone(_arm_bones[side], axis, angle)
 
 

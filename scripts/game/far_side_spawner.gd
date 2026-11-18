@@ -81,33 +81,33 @@ static func spawn_table_for_size(size: float) -> Array[Dictionary]:
 	if size < 50.0:
 		return [
 			{"kind": Kind.GRASS, "count": 1, "weight": 80.0},
-			{"kind": Kind.MONSTER, "count": 1, "weight": 20.0},
+			{"kind": Kind.MONSTER, "count": 1, "weight": 20.0, "level": 1},
 		]
 	if size < 200.0:
 		return [
 			{"kind": Kind.GRASS, "count": 1, "weight": 50.0},
 			{"kind": Kind.BUSH, "count": 1, "weight": 25.0},
-			{"kind": Kind.MONSTER, "count": 1, "weight": 20.0},
-			{"kind": Kind.MONSTER, "count": 2, "weight": 5.0},
+			{"kind": Kind.MONSTER, "count": 1, "weight": 20.0, "level": 1},
+			{"kind": Kind.MONSTER, "count": 2, "weight": 5.0, "level": 2},
 		]
 	if size < 500.0:
 		return [
 			{"kind": Kind.GRASS, "count": 1, "weight": 30.0},
 			{"kind": Kind.BUSH, "count": 1, "weight": 15.0},
 			{"kind": Kind.SAPLING, "count": 1, "weight": 5.0},
-			{"kind": Kind.MONSTER, "count": 1, "weight": 30.0},
-			{"kind": Kind.MONSTER, "count": 2, "weight": 15.0},
-			{"kind": Kind.MONSTER, "count": 3, "weight": 5.0},
+			{"kind": Kind.MONSTER, "count": 1, "weight": 30.0, "level": 1},
+			{"kind": Kind.MONSTER, "count": 2, "weight": 15.0, "level": 2},
+			{"kind": Kind.MONSTER, "count": 3, "weight": 5.0, "level": 3},
 		]
 	return [
 		{"kind": Kind.GRASS, "count": 1, "weight": 20.0},
 		{"kind": Kind.BUSH, "count": 1, "weight": 15.0},
 		{"kind": Kind.SAPLING, "count": 1, "weight": 10.0},
 		{"kind": Kind.TREE, "count": 1, "weight": 5.0},
-		{"kind": Kind.MONSTER, "count": 1, "weight": 20.0},
-		{"kind": Kind.MONSTER, "count": 2, "weight": 15.0},
-		{"kind": Kind.MONSTER, "count": 3, "weight": 10.0},
-		{"kind": Kind.MONSTER, "count": 4, "weight": 5.0},
+		{"kind": Kind.MONSTER, "count": 1, "weight": 20.0, "level": 1},
+		{"kind": Kind.MONSTER, "count": 2, "weight": 15.0, "level": 2},
+		{"kind": Kind.MONSTER, "count": 3, "weight": 10.0, "level": 3},
+		{"kind": Kind.MONSTER, "count": 4, "weight": 5.0, "level": 4},
 	]
 
 
@@ -133,15 +133,23 @@ func spawn_one() -> DecorProp:
 	var entry: Dictionary = roll_spawn(size, randf())
 	var kind: int = int(entry["kind"])
 	var count: int = int(entry["count"])
+	var level: int = int(entry.get("level", 1))
 	var direction: Vector3 = _region_direction()
 	var placed: DecorProp = null
 	for i: int in count:
 		var spot: Vector3 = direction
 		if count > 1:
 			spot = _tilted(direction, CLUSTER_SPREAD * sqrt(float(i + 1) / float(count)))
-		placed = _place(kind, spot)
+		placed = _place(kind, spot, level)
 	spawned.emit(kind)
 	return placed
+
+
+## Places one monster of the given level right where a test needs it.
+func debug_spawn_monster(direction: Vector3, level: int = 1) -> DecorProp:
+	if planet == null or player == null:
+		return null
+	return _place(Kind.MONSTER, direction.normalized(), level)
 
 
 func debug_spawn_all() -> void:
@@ -159,16 +167,19 @@ func debug_spawn_all() -> void:
 	]
 	var base: Vector3 = -player.get_up()
 	var middle: float = (float(kinds.size()) - 1.0) * 0.5
+	var level: int = 1
 	for i: int in kinds.size():
 		var offset: float = (float(i) - middle) * DEBUG_SPREAD
-		_place(kinds[i], _tilted(base, offset))
+		var placed: DecorProp = _place(kinds[i], _tilted(base, offset), level)
+		if kinds[i] == Kind.MONSTER:
+			level = mini(level + 1, 4)
 
 
-func _place(kind: int, direction: Vector3) -> DecorProp:
+func _place(kind: int, direction: Vector3, level: int = 1) -> DecorProp:
 	var prop := DecorProp.new()
 	prop.name = "Prop%d" % _props.size()
 	add_child(prop)
-	prop.setup(kind, randi())
+	prop.setup(kind, randi(), level)
 	prop.anchor_dir = direction.normalized()
 	_settle(prop)
 	_props.append(prop)

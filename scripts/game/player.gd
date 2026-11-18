@@ -26,6 +26,8 @@ const ROPE_STEER_PULL: float = 0.45
 const ROPE_ARRIVE: float = 1.2
 const ROPE_HANG_FADE: float = 2.0
 const ROPE_HANG_FLOOR: float = 0.4
+## How far in front of his feet the watering can reaches.
+const WATER_REACH: float = 1.05
 
 @export var walk_speed: float = 3.3
 @export var run_multiplier: float = 1.8
@@ -44,6 +46,7 @@ var rope: RopeAnchor
 var locked: bool = false
 var smearing: bool = false
 var dead: bool = false
+var watering: bool = false
 
 var _facing: Vector3 = Vector3.BACK
 var _coyote: float = 0.0
@@ -172,6 +175,7 @@ func get_speed_ratio() -> float:
 
 
 func start_smearing() -> void:
+	set_watering(false)
 	locked = true
 	smearing = true
 	velocity = Vector3.ZERO
@@ -197,6 +201,7 @@ func release_control() -> void:
 func freeze() -> void:
 	if dead:
 		return
+	set_watering(false)
 	dead = true
 	locked = true
 	_set_winch_playing(false)
@@ -229,6 +234,31 @@ func debug_jump() -> void:
 
 func play_catch_pose() -> void:
 	_model.play_catch_pose()
+
+
+## True while the can is out and pouring. The model shows the can in his hand.
+func set_watering(active: bool) -> void:
+	var wanted: bool = active and not dead and not locked
+	if wanted == watering:
+		return
+	watering = wanted
+	_model.set_watering(wanted)
+
+
+func is_watering() -> bool:
+	return watering
+
+
+## The patch of ground directly in front of his feet that the can waters.
+func get_water_target() -> Vector3:
+	var forward: Vector3 = _facing
+	if forward.length_squared() < 0.01:
+		forward = -global_transform.basis.z
+	var spot: Vector3 = global_position + forward.normalized() * WATER_REACH
+	if planet == null:
+		return spot
+	var up: Vector3 = (spot - planet.get_center()).normalized()
+	return planet.get_center() + up * (planet.radius + 0.02)
 
 
 func burst_dust() -> void:

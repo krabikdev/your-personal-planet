@@ -520,7 +520,7 @@ func test_skeleton_lies_near_the_boy_with_its_finds() -> void:
 	assert_gt(distance, 1.0, "the finds should not be picked up instantly")
 	assert_lt(distance, 3.0, "the skeleton should lie right next to the boy")
 	assert_true(skeleton.has_can(), "the watering can should still be lying there")
-	assert_true(skeleton.has_pouch(), "the pouch should still be lying there")
+	assert_null(skeleton.get_node_or_null("Pouch"), "the pouch by the skeleton should be gone")
 
 
 func test_skeleton_finds_can_be_picked_up() -> void:
@@ -537,11 +537,7 @@ func test_skeleton_finds_can_be_picked_up() -> void:
 	await wait_process_frames(2)
 	assert_eq(model.size(), 1, "walking up to the can should add it to the bag")
 	assert_eq(model.items[0].kind, StoneItem.Kind.WATERING_CAN)
-
-	player.global_position = skeleton.get_pouch_position()
-	await wait_process_frames(2)
-	assert_eq(model.size(), 2, "walking up to the pouch should add it too")
-	assert_eq(model.items[1].kind, StoneItem.Kind.POUCH)
+	assert_true(model.has_watering_can(), "the bag now has a watering can")
 
 
 func test_the_skeleton_sinks_slowly_as_the_planet_grows() -> void:
