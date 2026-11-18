@@ -168,3 +168,41 @@ func test_a_tethered_boy_flies_sideways_faster_than_he_walks() -> void:
 		player.walk_speed * 1.2,
 		"a boy hanging from the stake should glide sideways faster than he walks"
 	)
+
+
+func test_reeling_is_three_times_faster_and_plays_a_winch() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 10.0)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(2)
+
+	assert_almost_eq(Boy.ROPE_CRAWL_SPEED, 4.05, 0.01, "reeling should be three times faster")
+
+	Input.action_press("jump")
+	await get_tree().create_timer(0.45).timeout
+	var to_stake: Vector3 = player.rope.get_anchor_position() - player.global_position
+	var reeling_speed: float = player.velocity.dot(to_stake.normalized())
+	assert_gt(reeling_speed, 3.0, "holding Space should pull the boy in quickly")
+	assert_true(player.is_winching(), "a winch should wind while the boy reels himself in")
+	assert_eq(
+		player._winch.stream.resource_path,
+		"res://assets/audio/winch.wav",
+		"the reel should use the winch loop"
+	)
+	assert_eq(
+		(player._winch.stream as AudioStreamWAV).loop_mode,
+		AudioStreamWAV.LOOP_FORWARD,
+		"the winch loop should repeat seamlessly"
+	)
+
+	Input.action_release("jump")
+	await wait_physics_frames(2)
+	assert_false(player.is_winching(), "the winch should stop when Space is released")

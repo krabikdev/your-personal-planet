@@ -11,7 +11,7 @@ signal landed(strength: float)
 
 const ROPE_BOUNCE: float = 0.55
 const ROPE_BRAKE_BOUNCE: float = 0.45
-const ROPE_CRAWL_SPEED: float = 1.35
+const ROPE_CRAWL_SPEED: float = 4.05
 
 @export var walk_speed: float = 3.3
 @export var run_multiplier: float = 1.8
@@ -42,11 +42,13 @@ var _running: bool = false
 var _rope_crawl: bool = false
 var _rope_brake_latch: bool = false
 var _rope_recoil: float = 0.0
+var _winch_active: bool = false
 var _hint_time: float = 0.0
 var _streams: Dictionary[String, AudioStream] = {}
 
 @onready var _model: PrinceModel = %Visual
 @onready var _audio: AudioStreamPlayer3D = %Audio
+@onready var _winch: AudioStreamPlayer3D = %Winch
 @onready var _catch_hint: Node3D = %CatchHint
 
 
@@ -62,6 +64,23 @@ func _ready() -> void:
 		var stream: AudioStream = load("res://assets/audio/%s.wav" % key) as AudioStream
 		if stream != null:
 			_streams[key] = stream
+	_setup_winch()
+
+
+func _setup_winch() -> void:
+	if _winch == null:
+		return
+	var stream: AudioStreamWAV = load("res://assets/audio/winch.wav") as AudioStreamWAV
+	if stream == null:
+		return
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	stream.loop_end = int(stream.get_length() * stream.mix_rate)
+	_winch.stream = stream
+
+
+func is_winching() -> bool:
+	return _winch_active
 
 
 func _process(delta: float) -> void:
@@ -114,6 +133,7 @@ func remove_stake() -> void:
 	_rope_crawl = false
 	_rope_recoil = 0.0
 	_rope_brake_latch = false
+	_set_winch_playing(false)
 	rope.clear()
 	_play("stake_pull", -3.0, 0.08)
 
@@ -158,6 +178,7 @@ func start_smearing() -> void:
 	smearing = true
 	velocity = Vector3.ZERO
 	set_catch_hint(false)
+	_set_winch_playing(false)
 	_model.set_smearing(true)
 
 
@@ -182,6 +203,7 @@ func freeze() -> void:
 	dead = true
 	locked = true
 	set_catch_hint(false)
+	_set_winch_playing(false)
 	_model.set_sitting(false)
 	_model.set_smearing(false)
 	velocity = Vector3.ZERO
@@ -229,6 +251,7 @@ func _physics_process(delta: float) -> void:
 	up_direction = up
 	if dead:
 		_update_basis(up)
+		_set_winch_playing(false)
 		return
 
 	var grounded_before: bool = is_on_floor()
@@ -272,6 +295,33 @@ func _physics_process(delta: float) -> void:
 
 	_update_cold(delta)
 	_model.set_motion(get_speed_ratio(), grounded_now, _running, velocity.length(), velocity)
+	_update_winch()
+
+
+func _update_winch() -> void:
+	var reeling: bool = (
+		_rope_crawl
+		and not locked
+		and not dead
+		and _rope_recoil <= 0.0
+		and not is_on_floor()
+		and rope != null
+		and rope.is_planted()
+	)
+	_set_winch_playing(reeling)
+
+
+func _set_winch_playing(value: bool) -> void:
+	if value == _winch_active:
+		return
+	_winch_active = value
+	if _winch == null:
+		return
+	if value:
+		_winch.volume_db = -9.0 + linear_to_db(clampf(AudioDirector.sfx_volume, 0.001, 1.0))
+		_winch.play()
+	else:
+		_winch.stop()
 
 
 func _rope_air_active() -> bool:
