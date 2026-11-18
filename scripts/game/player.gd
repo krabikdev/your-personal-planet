@@ -14,6 +14,8 @@ const ROPE_RECOIL_MAX: float = 1.2
 const ROPE_CRAWL_SPEED: float = 4.05
 const ROPE_REEL_ACCEL: float = 9.0
 const ROPE_MAX_COLD: float = 0.9
+const MAX_FALL_SPEED: float = 26.0
+const GROUND_STICK: float = 0.12
 const ROPE_STEER_PULL: float = 0.45
 
 @export var walk_speed: float = 3.3
@@ -281,6 +283,10 @@ func _physics_process(delta: float) -> void:
 	_apply_rope_limit()
 
 	var grounded_now: bool = is_on_floor()
+	if not grounded_now and _was_grounded and velocity.dot(after_up) < 1.0:
+		# Walking over a sphere loses the floor for a frame now and then. Treat
+		# that as standing still, or the gait would snap on and off every step.
+		grounded_now = get_altitude() < GROUND_STICK
 	if grounded_now and not _was_grounded:
 		if _fall_speed > 1.2:
 			var strength: float = clampf(_fall_speed / 6.0, 0.25, 1.2)
@@ -400,6 +406,9 @@ func _apply_rope_limit() -> void:
 func _apply_gravity(up: Vector3, delta: float) -> void:
 	var gravity: float = planet.gravity_at(global_position)
 	velocity -= up * gravity * delta
+	var falling: float = -velocity.dot(up)
+	if falling > MAX_FALL_SPEED:
+		velocity += up * (falling - MAX_FALL_SPEED)
 	if is_on_floor():
 		var radial: float = velocity.dot(up)
 		if radial < 0.0:

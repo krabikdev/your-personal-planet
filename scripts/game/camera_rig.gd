@@ -8,6 +8,11 @@ extends Node3D
 @export var base_lift: float = 3.0
 @export var base_distance: float = 3.4
 @export var mouse_sensitivity: float = 0.0025
+@export var distance_max: float = 9.0
+@export var lift_max: float = 6.0
+@export var zoom_speed: float = 1.8
+@export var zoom_in_limit: float = 0.45
+@export var zoom_out_limit: float = 2.2
 @export var sky_head_height: float = 1.72
 @export var sky_blend_speed: float = 6.0
 
@@ -21,6 +26,7 @@ var _intro: float = 1.0
 var _time: float = 0.0
 var _focus: float = 1.0
 var _altitude: float = 0.0
+var _zoom: float = 1.0
 var _target_focus: float = 1.0
 var _sky: bool = false
 var _sky_blend: float = 0.0
@@ -84,6 +90,10 @@ func get_sky_yaw() -> float:
 	return _sky_yaw
 
 
+func get_zoom() -> float:
+	return _zoom
+
+
 func get_view_yaw() -> float:
 	return _view_yaw
 
@@ -122,6 +132,10 @@ func _process(delta: float) -> void:
 	_intro = move_toward(_intro, 0.0, delta * 0.55)
 	_shake = move_toward(_shake, 0.0, delta * 2.2)
 	_focus = lerpf(_focus, _target_focus, 1.0 - exp(-3.5 * delta))
+	if Input.is_action_pressed("zoom_in"):
+		_zoom = maxf(_zoom - zoom_speed * delta, zoom_in_limit)
+	if Input.is_action_pressed("zoom_out"):
+		_zoom = minf(_zoom + zoom_speed * delta, zoom_out_limit)
 	_sky_blend = move_toward(_sky_blend, 1.0 if _sky else 0.0, delta * sky_blend_speed)
 
 	var target_position: Vector3 = _target.get_global_transform_interpolated().origin
@@ -136,14 +150,15 @@ func _process(delta: float) -> void:
 
 	var altitude: float = maxf(horizon, 0.0)
 	_altitude = lerpf(_altitude, altitude, 1.0 - exp(-2.5 * delta))
-	var lift: float = base_lift + _planet.radius * 0.11
-	lift += clampf(_altitude * 0.55, 0.0, 30.0)
-	var distance: float = base_distance + _planet.radius * 0.19
-	distance += clampf(_altitude * 0.35, 0.0, 22.0)
+	var framing: Vector2 = _framing()
+	var lift: float = framing.x + clampf(_altitude * 0.55, 0.0, 6.0)
+	var distance: float = framing.y + clampf(_altitude * 0.35, 0.0, 4.0)
 	lift += _intro * 5.0
 	distance += _intro * 9.0
 	lift /= _focus
 	distance /= _focus
+	lift *= _zoom
+	distance *= _zoom
 
 	var view_forward: Vector3 = _heading.rotated(orbit_up, _view_yaw)
 	var desired: Vector3 = _orbit + orbit_up * lift - view_forward * distance
@@ -173,12 +188,23 @@ func _process(delta: float) -> void:
 	)
 
 
+## The chase framing before altitude, the intro and the zoom get a say. Both
+## the snap and the steady state use it, so the camera never starts a planet
+## away from where it is going to settle.
+func _framing() -> Vector2:
+	return Vector2(
+		base_lift + minf(_planet.radius * 0.11, lift_max),
+		base_distance + minf(_planet.radius * 0.19, distance_max),
+	)
+
+
 func _snap() -> void:
 	if _target == null or _planet == null:
 		return
 	var target_position: Vector3 = _target.global_position
 	var up: Vector3 = (target_position - _planet.get_center()).normalized()
-	var lift: float = base_lift + _planet.radius * 0.11
-	var distance: float = base_distance + _planet.radius * 0.19
+	var framing: Vector2 = _framing() * _zoom
+	var lift: float = framing.x
+	var distance: float = framing.y
 	_camera.global_position = target_position + up * lift - _heading * distance
 	_camera.look_at(target_position + up * 0.55 + _heading * 1.1, up)
