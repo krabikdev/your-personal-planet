@@ -271,8 +271,9 @@ func _on_rope_removed() -> void:
 func _on_rope_snapped(force: float) -> void:
 	if _state != State.PLAYING:
 		return
+	# The rope only shakes the camera: no airy whoosh, so a tethered jump stays
+	# quiet instead of sounding like a flyby.
 	_camera_rig.add_shake(clampf(force * 0.02, 0.04, 0.26))
-	AudioDirector.play_sfx("whoosh", 0.18, -5.0)
 
 
 func _on_froze() -> void:
