@@ -19,6 +19,9 @@ const FOOTSTEP_DB: float = -9.0
 const FOOTSTEP_PITCH_MIN: float = 0.05
 const FOOTSTEP_PITCH_MAX: float = 0.10
 const GROUND_STICK: float = 0.12
+## Jumping stays possible this close above the ground even when the feet are
+## not planted: stepping off a pebble should not eat the jump.
+const JUMP_GROUND_ALLOWANCE: float = 0.18
 const ROPE_STEER_PULL: float = 0.45
 const ROPE_ARRIVE: float = 1.2
 const ROPE_HANG_FADE: float = 2.0
@@ -442,7 +445,7 @@ func _handle_jump(up: Vector3, grounded: bool) -> void:
 		_jump_buffer = jump_buffer_time
 	else:
 		_jump_buffer = maxf(_jump_buffer - get_physics_process_delta_time(), 0.0)
-	if grounded:
+	if grounded or get_altitude() < JUMP_GROUND_ALLOWANCE:
 		_coyote = coyote_time
 	else:
 		_coyote = maxf(_coyote - get_physics_process_delta_time(), 0.0)
