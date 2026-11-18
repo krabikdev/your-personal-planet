@@ -115,5 +115,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1
 ```
 
 Скрипт перевіряє форматування, лінт, завантаження проєкту та GUT-тести
-(97 тестів). Для візуальної перевірки є `tools/visual_stage.tscn` і
+(113 тестів). Для візуальної перевірки є `tools/visual_stage.tscn` і
 `tools/menu_stage.tscn` — їх можна записати через `--write-movie`.
