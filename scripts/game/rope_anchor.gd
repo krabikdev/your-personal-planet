@@ -4,10 +4,10 @@ extends Node3D
 ## The small stake the boy hammers into the ground, plus the rope that ties him
 ## to it. The rope is a plain distance limit: it never changes the boy's physics
 ## until it is fully stretched, and then it stops him and throws him back
-## instead of letting him drift off. The cord itself is the shortest path that
-## fits: a straight line while it clears the planet, otherwise the ground arc
-## plus the tangent up to his hand, so it drapes and the winch follows what is
-## actually drawn instead of cutting through the air.
+## instead of letting him drift off. It is also simulated as a real chain of
+## masses: gravity pulls it down, the planet pushes it out, and the ground
+## drags against it, so it drapes, sags and has to be dragged around the world
+## instead of teleporting to whichever side is convenient.
 
 signal planted
 signal removed
@@ -21,9 +21,13 @@ const ROPE_POINTS_MAX: int = 96
 const ROPE_REEL_SPAN: float = 6.0
 const ROPE_REEL_SHARE: float = 0.3
 const ROPE_MIN_SPACING: float = 0.5
-const ROPE_SEGMENT_MIN: float = 0.2
 const ROPE_SPACING_RATIO: float = 0.02
 const ROPE_SLACK: float = 0.005
+const ROPE_SPOOL_FAST: float = 20.0
+const ROPE_SPOOL_SLOW: float = 6.0
+const ROPE_ITERATIONS: int = 12
+const ROPE_FRICTION: float = 0.55
+const ROPE_DAMPING: float = 0.06
 const ROPE_CLEARANCE: float = 0.06
 const ROPE_GROUND_STEP: float = 0.05
 const WOOD := Color("7b5c45")
@@ -40,11 +44,9 @@ var _stake: Node3D
 var _rope: MultiMeshInstance3D
 var _points: PackedVector3Array = PackedVector3Array()
 var _reel: Vector3 = Vector3.ZERO
-var _pin: Vector3 = Vector3.ZERO
 var _previous: PackedVector3Array = PackedVector3Array()
 var _segment: float = 0.25
 var _shown: int = 0
-var _pending: float = 0.0
 
 
 func setup(p_planet: Planet, p_player: Boy) -> void:
@@ -130,7 +132,6 @@ func plant(surface_position: Vector3) -> void:
 	_anchor = planet.get_center() + up * planet.radius
 	_planted = true
 	_reel = Vector3.ZERO
-	_pin = Vector3.ZERO
 	_build_stake(up)
 	_build_rope()
 	planted.emit()
@@ -141,7 +142,6 @@ func clear() -> void:
 		return
 	_planted = false
 	_reel = Vector3.ZERO
-	_pin = Vector3.ZERO
 	if _stake != null:
 		_stake.queue_free()
 		_stake = null
@@ -167,16 +167,9 @@ func _process(delta: float) -> void:
 	_rope.visible = true
 	if _points.size() < 4:
 		_reset_rope()
-	var step: float = 1.0 / 60.0
-	_pending = minf(_pending + delta, step * 3.0)
-	var taken: int = 0
-	while _pending >= step and taken < 3:
-		_spool(step, from, to)
-		_step(step, from, to)
-		_pending -= step
-		taken += 1
-	if taken > 0:
-		_draw_rope()
+	_spool(delta, from, to)
+	_step(minf(delta, 1.0 / 30.0), from, to)
+	_draw_rope()
 
 
 func _on_radius_changed(_new_radius: float) -> void:
@@ -268,18 +261,14 @@ func _build_rope() -> void:
 func _reset_rope() -> void:
 	if planet == null or player == null or _rope == null:
 		return
-	_pin = Vector3.ZERO
 	var from: Vector3 = _stake_top()
 	var to: Vector3 = _hand_point()
+	var spacing: float = maxf(ROPE_MIN_SPACING, planet.radius * ROPE_SPACING_RATIO)
+	var count: int = clampi(int(ceil(get_max_length() / spacing)) + 1, 12, ROPE_POINTS_MAX)
 	var path: PackedVector3Array = _tangent_path(from, to)
-	var length: float = 0.0
-	for index: int in path.size() - 1:
-		length += path[index].distance_to(path[index + 1])
-	var count: int = clampi(int(ceil(length / ROPE_SEGMENT_MIN)) + 1, 8, ROPE_POINTS_MAX)
 	_points = _resample(path, count)
 	_previous = _points.duplicate()
 	_segment = maxf(_points[0].distance_to(_points[1]), 0.05)
-	_pending = 0.0
 	_draw_rope()
 
 
@@ -287,87 +276,91 @@ func _stake_top() -> Vector3:
 	var up: Vector3 = planet.get_center().direction_to(_anchor)
 	if up.length_squared() < 0.1:
 		up = Vector3.UP
-	return _anchor + up * ROPE_CLEARANCE
+	return _anchor + up * (STAKE_HEIGHT - STAKE_SINK - 0.04)
 
 
 func _hand_point() -> Vector3:
-	var target: Vector3 = player.get_hand_position()
-	if _pin == Vector3.ZERO or _pin.distance_to(target) > 2.0:
-		_pin = target
-	else:
-		_pin = _pin.lerp(target, 0.2)
-	# A smoothed pin may lag behind a teleport; it must never sink into the world.
-	var centre: Vector3 = planet.get_center()
-	var contact: float = planet.radius + ROPE_CLEARANCE
-	var offset: Vector3 = _pin - centre
-	if offset.length() < contact:
-		_pin = centre + offset.normalized() * contact
-	return _pin
+	return player.get_hand_position()
 
 
 ## The winch pays line out quickly and reels it back slowly, so the chain always
 ## has just enough length to reach the boy plus a hand of slack to sag with.
-func _spool(_delta: float, from: Vector3, to: Vector3) -> bool:
+func _spool(delta: float, from: Vector3, to: Vector3) -> bool:
+	var centre: Vector3 = planet.get_center()
 	var straight: float = from.distance_to(to)
-	var target: float = maxf(_path_length(from, to) + ROPE_SLACK, straight + 0.01)
+	var rest: float = planet.radius + ROPE_CLEARANCE
+	var arc: float = (from - centre).normalized().angle_to((to - centre).normalized()) * rest
+	var target: float = maxf(arc + ROPE_SLACK, straight + 0.004)
 	target = clampf(target, 0.3, get_max_length())
-	_fit_count(target)
 	var wanted: float = target / float(_points.size() - 1)
+	var speed: float = ROPE_SPOOL_FAST if wanted > _segment else ROPE_SPOOL_SLOW
 	var before: float = _segment
-	_segment = wanted
+	_segment = move_toward(_segment, wanted, speed * delta)
 	return not is_equal_approx(before, _segment)
 
 
 ## One position-based step: gravity, then the chain is pulled back to its
 ## segment length against the planet, and the ground drags on whatever touches
 ## it. Friction is what stops the rope from skating across the world.
-## The length of the shortest cord that actually fits: a straight line while
-## that line clears the planet, and otherwise the ground arc plus the tangent
-## up to the hand. Handing it the arc plus the rise even when he is right next
-## to the stake is what used to leave a short rope bulging.
-func _path_length(from: Vector3, to: Vector3) -> float:
-	var centre: Vector3 = planet.get_center()
-	var rest: float = planet.radius + ROPE_CLEARANCE
-	var from_dir: Vector3 = (from - centre).normalized()
-	var to_dir: Vector3 = (to - centre).normalized()
-	var reach: float = (to - centre).length()
-	var angle: float = from_dir.angle_to(to_dir)
-	var theta: float = angle
-	if reach > rest + 0.0005:
-		theta = acos(clampf(rest / reach, 0.0, 1.0))
-	if angle < 0.0005 or theta >= angle:
-		return from.distance_to(to)
-	var drop: float = maxf((from - centre).length() - rest, 0.0)
-	return drop + rest * (angle - theta) + sqrt(maxf(reach * reach - rest * rest, 0.0))
-
-
-## A chain whose masses sit centimetres apart cannot follow a hand that moves
-## faster than they do: the pin jumps past them and the cord folds. Short ropes
-## therefore get fewer, longer links, and only a change of a quarter in the
-## count is worth re-cutting the chain for.
-func _fit_count(length: float) -> void:
-	var wanted: int = clampi(int(ceil(length / ROPE_SEGMENT_MIN)) + 1, 8, ROPE_POINTS_MAX)
-	var current: int = _points.size()
-	if absi(wanted - current) <= maxi(2, current / 4):
-		return
-	_points = _resample(_points, wanted)
+func _step(delta: float, from: Vector3, to: Vector3) -> void:
 	var centre: Vector3 = planet.get_center()
 	var contact: float = planet.radius + ROPE_CLEARANCE
-	for index: int in _points.size():
-		var offset: Vector3 = _points[index] - centre
-		if offset.length() < contact:
-			_points[index] = centre + offset.normalized() * contact
-	_previous = _points.duplicate()
-
-
-func _step(_delta: float, from: Vector3, to: Vector3) -> void:
-	var path: PackedVector3Array = _tangent_path(from, to)
-	if path.size() < 2:
-		return
-	_points = _resample(path, _points.size())
+	var damping: float = pow(1.0 - ROPE_DAMPING, delta * 60.0)
+	var count: int = _points.size()
+	for index: int in range(1, count - 1):
+		var point: Vector3 = _points[index]
+		var velocity: Vector3 = (point - _previous[index]) * damping
+		_previous[index] = point
+		var up: Vector3 = (point - centre).normalized()
+		var fall: float = planet.gravity_at(point) * delta * delta
+		_points[index] = point + velocity - up * fall
 	_points[0] = from
-	_points[_points.size() - 1] = to
-	_previous = _points.duplicate()
+	_previous[0] = from
+	_points[count - 1] = to
+	_previous[count - 1] = to
+	for _iteration: int in ROPE_ITERATIONS:
+		_solve_lengths()
+		_clamp_to_surface(centre, contact)
+	_drag_on_ground(delta, centre, contact)
+
+
+func _solve_lengths() -> void:
+	var count: int = _points.size()
+	for index: int in count - 1:
+		var a: Vector3 = _points[index]
+		var b: Vector3 = _points[index + 1]
+		var span: Vector3 = b - a
+		var distance: float = span.length()
+		if distance < 0.00001:
+			continue
+		var correction: Vector3 = span * (0.5 * (distance - _segment) / distance)
+		if index != 0:
+			_points[index] = a + correction
+		if index + 1 != count - 1:
+			_points[index + 1] = b - correction
+
+
+func _clamp_to_surface(centre: Vector3, contact: float) -> void:
+	var count: int = _points.size()
+	for index: int in range(1, count - 1):
+		var offset: Vector3 = _points[index] - centre
+		var distance: float = offset.length()
+		if distance < contact and distance > 0.0001:
+			_points[index] = centre + offset * (contact / distance)
+
+
+func _drag_on_ground(delta: float, centre: Vector3, contact: float) -> void:
+	var grip: float = 1.0 - pow(1.0 - ROPE_FRICTION, delta * 60.0)
+	var count: int = _points.size()
+	for index: int in range(1, count - 1):
+		var point: Vector3 = _points[index]
+		var offset: Vector3 = point - centre
+		if offset.length() > contact + 0.02:
+			continue
+		var up: Vector3 = offset.normalized()
+		var velocity: Vector3 = point - _previous[index]
+		var sideways: Vector3 = velocity - up * velocity.dot(up)
+		_previous[index] = point - velocity + sideways * grip
 
 
 func _draw_rope() -> void:
