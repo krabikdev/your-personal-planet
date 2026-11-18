@@ -3,14 +3,18 @@ extends Node3D
 
 ## The old traveller's remains near the boy's landing spot. A rusty watering
 ## can and a small pouch lie by the skeleton's hands; walking up to them tucks
-## them into the bag. As the planet grows, the surface rises over the bones and
-## swallows them.
+## them into the bag. As the planet grows, the ground creeps up over the bones
+## and slowly swallows them where they lie.
 
 signal item_picked(kind: int)
 
 const SPAWN_ANGLE: float = 0.45
 const PICKUP_RADIUS: float = 1.05
-const BURY_DEPTH: float = 0.45
+## How much of the new ground the skeleton keeps under itself. Just under 1
+## means it stays in place on the surface but loses a little height each time,
+## so it sinks into the dust slowly instead of vanishing with the first stone.
+const RISE_WITH_GROUND: float = 0.92
+const BURY_DEPTH: float = 0.1
 const BONE_COLOR := Color("e2dcc8")
 const JOINT_COLOR := Color("c6bea6")
 const CAN_COLOR := Color("7f9a90")
@@ -22,7 +26,7 @@ var planet: Planet
 var player: Boy
 
 var _origin_distance: float = 5.0
-var _ground_up: Vector3 = Vector3.UP
+var _ground_dir: Vector3 = Vector3.UP
 var _can: Node3D
 var _pouch: Node3D
 var _can_picked: bool = false
@@ -34,22 +38,19 @@ func setup(p_planet: Planet, p_player: Boy) -> void:
 	planet = p_planet
 	player = p_player
 	_origin_distance = planet.radius
-	_ground_up = player.get_up()
 
 	var right: Vector3 = player.global_transform.basis.x
 	var ahead: Vector3 = -player.global_transform.basis.z
 	var tangent: Vector3 = (ahead * 0.55 + right * 0.84).normalized()
-	var direction: Vector3 = (
-		(_ground_up * cos(SPAWN_ANGLE) + tangent * sin(SPAWN_ANGLE)).normalized()
-	)
-	global_position = planet.get_center() + direction * planet.radius
+	_ground_dir = ((player.get_up() * cos(SPAWN_ANGLE) + tangent * sin(SPAWN_ANGLE)).normalized())
+	global_position = planet.get_center() + _ground_dir * planet.radius
 
-	var body_axis: Vector3 = tangent - direction * tangent.dot(direction)
+	var body_axis: Vector3 = tangent - _ground_dir * tangent.dot(_ground_dir)
 	if body_axis.length_squared() < 0.01:
-		body_axis = direction.cross(Vector3.RIGHT)
+		body_axis = _ground_dir.cross(Vector3.RIGHT)
 	body_axis = body_axis.normalized()
-	var side_axis: Vector3 = body_axis.cross(_ground_up).normalized()
-	global_transform = Transform3D(Basis(body_axis, _ground_up, side_axis), global_position)
+	var side_axis: Vector3 = body_axis.cross(_ground_dir).normalized()
+	global_transform = Transform3D(Basis(body_axis, _ground_dir, side_axis), global_position)
 
 	_build()
 	if not planet.radius_changed.is_connected(_on_radius_changed):
@@ -102,9 +103,15 @@ func _process(_delta: float) -> void:
 func _on_radius_changed(new_radius: float) -> void:
 	if _buried or planet == null:
 		return
-	# The remains never move: the growing ground itself climbs over them, so a
-	# bigger planet simply swallows the skeleton where it lies.
-	if new_radius - _origin_distance >= BURY_DEPTH:
+	var growth: float = new_radius - _origin_distance
+	if growth <= 0.0:
+		return
+	# The skeleton rides the rising ground almost completely, so it keeps its
+	# spot in the landscape and only loses a few centimetres of clearance per
+	# growth. That makes the burial a slow, visible slide into the dust.
+	var distance: float = _origin_distance + growth * RISE_WITH_GROUND
+	global_position = planet.get_center() + _ground_dir * distance
+	if new_radius - distance >= BURY_DEPTH:
 		_buried = true
 		visible = false
 		set_process(false)

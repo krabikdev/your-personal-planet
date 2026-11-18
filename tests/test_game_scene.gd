@@ -458,7 +458,7 @@ func test_skeleton_finds_can_be_picked_up() -> void:
 	assert_eq(model.items[1].kind, StoneItem.Kind.POUCH)
 
 
-func test_the_skeleton_stays_put_and_is_swallowed_as_the_planet_grows() -> void:
+func test_the_skeleton_sinks_slowly_as_the_planet_grows() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game
 	add_child_autofree(game)
@@ -467,21 +467,22 @@ func test_the_skeleton_stays_put_and_is_swallowed_as_the_planet_grows() -> void:
 	var skeleton: SkeletonProp = game.get_node("Skeleton") as SkeletonProp
 	var planet: Planet = game.get_node("Planet") as Planet
 	var start_position: Vector3 = skeleton.global_position
-	var start_distance: float = start_position.distance_to(planet.get_center())
 
 	planet.apply_radius(PlanetProfile.BASE_RADIUS + 0.25)
 	await wait_process_frames(2)
+	var moved: float = skeleton.global_position.distance_to(start_position)
+	assert_gt(moved, 0.15, "the skeleton should ride the rising ground")
+	assert_lt(moved, 0.25, "but it should fall a little behind the new surface")
 	assert_lt(
-		skeleton.global_position.distance_to(start_position),
-		0.001,
-		"the skeleton should stay exactly where it lies"
+		skeleton.global_position.distance_to(planet.get_center()),
+		planet.radius,
+		"the first growth should already start covering the bones"
 	)
-	assert_lt(start_distance, planet.radius, "the risen ground should already cover the bones")
-	assert_false(skeleton.is_buried(), "a little growth should not hide it yet")
+	assert_false(skeleton.is_buried(), "one small growth should not hide it yet")
 
-	planet.apply_radius(PlanetProfile.BASE_RADIUS + 0.8)
+	planet.apply_radius(PlanetProfile.BASE_RADIUS + 1.6)
 	await wait_process_frames(2)
-	assert_true(skeleton.is_buried(), "enough growth should swallow the skeleton")
+	assert_true(skeleton.is_buried(), "enough slow sinking should swallow the skeleton")
 	assert_false(skeleton.visible, "a buried skeleton should not be drawn")
 
 

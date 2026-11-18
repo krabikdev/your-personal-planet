@@ -91,7 +91,7 @@ func _setup() -> void:
 				sink_prop.global_position - sink_side * 1.7 + sink_up * 0.2
 			)
 			sink_player.snap_to_surface()
-			sink_planet.apply_radius(PlanetProfile.BASE_RADIUS + 0.24)
+			sink_planet.apply_radius(PlanetProfile.BASE_RADIUS + 0.8)
 			sink_rig.setup(sink_prop, sink_planet)
 			sink_rig.base_lift = 1.7
 			sink_rig.base_distance = 3.6

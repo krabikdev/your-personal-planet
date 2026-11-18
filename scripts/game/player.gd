@@ -10,8 +10,8 @@ signal jumped
 signal landed(strength: float)
 
 const ROPE_BOUNCE: float = 0.55
-const ROPE_BRAKE_BOUNCE: float = 0.45
 const ROPE_CRAWL_SPEED: float = 4.05
+const ROPE_REEL_ACCEL: float = 9.0
 const ROPE_MAX_COLD: float = 0.9
 
 @export var walk_speed: float = 3.3
@@ -41,7 +41,6 @@ var _cold: float = 0.0
 var _running: bool = false
 var _rope_crawl: bool = false
 var _rope_brake_latch: bool = false
-var _rope_recoil: float = 0.0
 var _winch_active: bool = false
 var _streams: Dictionary[String, AudioStream] = {}
 
@@ -113,7 +112,6 @@ func remove_stake() -> void:
 	if dead or locked or rope == null or not rope.is_planted():
 		return
 	_rope_crawl = false
-	_rope_recoil = 0.0
 	_rope_brake_latch = false
 	_set_winch_playing(false)
 	rope.clear()
@@ -237,7 +235,7 @@ func _physics_process(delta: float) -> void:
 	var grounded_before: bool = is_on_floor()
 	if not locked:
 		if _rope_air_active():
-			_handle_rope_air(up, delta)
+			_handle_rope_air(delta)
 		else:
 			_apply_gravity(up, delta)
 			if not grounded_before:
@@ -284,7 +282,6 @@ func _update_winch() -> void:
 		_rope_crawl
 		and not locked
 		and not dead
-		and _rope_recoil <= 0.0
 		and not is_on_floor()
 		and rope != null
 		and rope.is_planted()
@@ -310,6 +307,7 @@ func _rope_air_active() -> bool:
 		return false
 	if is_on_floor():
 		_rope_crawl = false
+		_rope_brake_latch = false
 		return false
 	if not Input.is_action_pressed("jump"):
 		_rope_crawl = false
@@ -319,26 +317,21 @@ func _rope_air_active() -> bool:
 		return true
 	if _rope_brake_latch:
 		return false
-	# A fresh press in the air: stop dead and recoil, then start reeling in.
+	# A fresh press in the air: the winch takes over from the next frame on.
 	_rope_crawl = true
-	var speed: float = velocity.length()
-	velocity = -velocity * ROPE_BRAKE_BOUNCE
-	_rope_recoil = clampf(0.14 + speed * 0.02, 0.14, 0.4)
-	if speed > 0.6:
-		rope.notify_snap(speed)
 	return true
 
 
-func _handle_rope_air(up: Vector3, delta: float) -> void:
-	if _rope_recoil > 0.0:
-		_rope_recoil -= delta
-		_apply_gravity(up, delta)
-		return
+func _handle_rope_air(delta: float) -> void:
 	if rope == null:
 		return
 	var to_stake: Vector3 = rope.get_anchor_position() - global_position
-	if to_stake.length_squared() > 0.0001:
-		velocity = to_stake.normalized() * ROPE_CRAWL_SPEED
+	if to_stake.length_squared() < 0.0001:
+		return
+	# No snap and no bounce: the winch eats the outward speed bit by bit and
+	# then keeps winding the boy home at a steady pace.
+	var desired: Vector3 = to_stake.normalized() * ROPE_CRAWL_SPEED
+	velocity = velocity.move_toward(desired, ROPE_REEL_ACCEL * delta)
 
 
 func _apply_rope_limit() -> void:
