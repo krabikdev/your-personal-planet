@@ -10,11 +10,11 @@ extends CanvasLayer
 
 signal action_requested(action: StringName, value: float)
 
-const FONT_SIZE: int = 12
-const BUTTON_FONT_SIZE: int = 11
-const TITLE_SIZE: int = 14
-const BUTTON_MIN_SIZE := Vector2(34.0, 22.0)
-const VALUE_MIN_WIDTH: float = 58.0
+const FONT_SIZE: int = 16
+const BUTTON_FONT_SIZE: int = 15
+const TITLE_SIZE: int = 20
+const BUTTON_MIN_SIZE := Vector2(52.0, 32.0)
+const VALUE_MIN_WIDTH: float = 84.0
 const TITLE_COLOR := Color("d8b37d")
 const VALUE_COLOR := Color("b9cdb4")
 
@@ -37,41 +37,19 @@ const SECTIONS: Array = [
 		],
 	},
 	{
-		"title": "Час симуляції",
+		"title": "Швидкість гри",
 		"rows":
 		[
 			{
-				"label": "Швидкість",
+				"label": "Час",
 				"stat": &"time",
 				"buttons":
 				[
 					{"text": "0.5×", "action": &"time_scale", "value": 0.5},
 					{"text": "1×", "action": &"time_scale", "value": 1.0},
 					{"text": "2×", "action": &"time_scale", "value": 2.0},
-					{"text": "4×", "action": &"time_scale", "value": 4.0},
-				],
-			},
-		],
-	},
-	{
-		"title": "Гравець",
-		"rows":
-		[
-			{
-				"label": "Холод",
-				"stat": &"cold",
-				"buttons":
-				[
-					{"text": "0%", "action": &"cold_set", "value": 0.0},
-					{"text": "50%", "action": &"cold_set", "value": 0.5},
-					{"text": "100%", "action": &"cold_set", "value": 1.0},
-				],
-			},
-			{
-				"label": "Стрибок",
-				"buttons":
-				[
-					{"text": "Підкинути", "action": &"jump", "value": 1.0},
+					{"text": "5×", "action": &"time_scale", "value": 5.0},
+					{"text": "10×", "action": &"time_scale", "value": 10.0},
 				],
 			},
 		],

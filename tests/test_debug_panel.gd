@@ -37,7 +37,7 @@ func test_the_debug_panel_builds_categories_with_buttons() -> void:
 	var headings: Array[String] = []
 	for node: Node in panel.find_children("*", "Label", true, false):
 		headings.append((node as Label).text)
-	for wanted: String in ["Планета", "Час симуляції", "Гравець", "Уламки та сумка"]:
+	for wanted: String in ["Планета", "Швидкість гри", "Уламки та сумка"]:
 		assert_true(headings.has(wanted), "the panel should show the %s category" % wanted)
 
 
@@ -83,24 +83,27 @@ func test_the_planet_button_grows_the_world() -> void:
 	assert_almost_eq(planet.radius, 5.0, 0.01, "the reset button should shrink the world back")
 
 
-func test_the_cold_buttons_drive_the_boy() -> void:
+func test_resetting_the_planet_brings_the_boy_back_to_the_ground() -> void:
 	var game: Game = _make_game()
 	await wait_process_frames(1)
 
+	var planet: Planet = game.get_node("Planet") as Planet
 	var player: Boy = game.get_node("Player") as Boy
-	game._on_debug_action(&"cold_set", 0.5)
-	assert_almost_eq(player.get_cold(), 0.5, 0.01, "the panel should set the cold directly")
+	player.global_position = planet.get_center() + player.get_up() * (planet.radius + 40.0)
+	player.velocity = Vector3.ZERO
+	assert_gt(player.get_altitude(), 39.0, "the boy starts far above the ground")
 
-	game._on_debug_action(&"cold_set", 0.0)
-	assert_almost_eq(player.get_cold(), 0.0, 0.01, "the warm button should clear the cold")
+	game._on_debug_action(&"planet_set", 5.0)
+	assert_lt(player.get_altitude(), 0.2, "shrinking the world should drop him onto the surface")
+	assert_almost_eq(player.get_cold(), 0.0, 0.01, "the reset should warm him up as well")
 
 
 func test_the_time_buttons_change_the_simulation_speed() -> void:
 	var game: Game = _make_game()
 	await wait_process_frames(1)
 
-	game._on_debug_action(&"time_scale", 4.0)
-	assert_almost_eq(Engine.time_scale, 4.0, 0.001, "the time buttons should speed the world up")
+	game._on_debug_action(&"time_scale", 10.0)
+	assert_almost_eq(Engine.time_scale, 10.0, 0.001, "the time buttons should speed the world up")
 
 	game._on_debug_action(&"time_scale", 1.0)
 	assert_almost_eq(Engine.time_scale, 1.0, 0.001, "and put it back")
