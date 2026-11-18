@@ -105,8 +105,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _state == State.DEAD:
 		return
 	if event.is_action_pressed("interact") and _state == State.PLAYING:
-		_player.swing_net()
-		get_viewport().set_input_as_handled()
+		if _player.is_on_floor():
+			_player.swing_net()
+			get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("stake") and _state == State.PLAYING:
 		if not _rope.is_planted():
