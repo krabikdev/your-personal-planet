@@ -237,6 +237,9 @@ func _toggle_inventory() -> void:
 		return
 	if _state != State.PLAYING:
 		return
+	if not _player.is_on_floor():
+		_hud.show_toast("Сумку можна відкрити лише на землі.", Color("d9cbb8"), 2.0)
+		return
 	_state = State.INVENTORY
 	_inventory_ui.open(_model.items, _planet.radius)
 	_hud.visible = false

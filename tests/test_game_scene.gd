@@ -650,3 +650,49 @@ func test_the_net_swing_still_works_on_the_ground() -> void:
 	game._unhandled_input(event)
 
 	assert_true(player._model._net_swinging, "swinging the net on the ground should still work")
+
+
+func test_the_bag_opens_only_on_the_ground() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var planet: Planet = game.get_node("Planet") as Planet
+	var player: Boy = game.get_node("Player") as Boy
+	await wait_physics_frames(2)
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 1.5)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(1)
+	assert_false(player.is_on_floor(), "setup: the boy should be airborne for this check")
+
+	var event := InputEventAction.new()
+	event.action = &"inventory"
+	event.pressed = true
+	game._unhandled_input(event)
+
+	assert_eq(game._state, Game.State.PLAYING, "opening the bag mid-air should do nothing")
+
+
+func test_the_bag_still_opens_on_the_ground() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var player: Boy = game.get_node("Player") as Boy
+	player.snap_to_surface()
+	await wait_physics_frames(7)
+	assert_true(player.is_on_floor(), "setup: the boy should be grounded for this check")
+
+	var event := InputEventAction.new()
+	event.action = &"inventory"
+	event.pressed = true
+	game._unhandled_input(event)
+
+	assert_eq(game._state, Game.State.INVENTORY, "opening the bag on the ground should work")
+	game._unhandled_input(event)
+
+	assert_eq(game._state, Game.State.PLAYING, "closing the bag should give the game back")
+	assert_false(get_tree().paused, "closing the bag must unpause the tree")
