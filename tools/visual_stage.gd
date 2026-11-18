@@ -45,7 +45,7 @@ func _setup() -> void:
 		"catch":
 			var catcher: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 			catcher.force_spawn(0.5)
-			await get_tree().create_timer(7.6).timeout
+			await get_tree().create_timer(11.6).timeout
 			var planet: Planet = game.get_node("Planet") as Planet
 			var player: Boy = game.get_node("Player") as Boy
 			var point: Vector3 = catcher.debug_closest_point()
@@ -76,7 +76,7 @@ func _setup() -> void:
 		"hint":
 			var hint_catcher: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 			hint_catcher.force_spawn(0.5)
-			await get_tree().create_timer(7.6).timeout
+			await get_tree().create_timer(11.6).timeout
 			var hint_planet: Planet = game.get_node("Planet") as Planet
 			var hint_player: Boy = game.get_node("Player") as Boy
 			var hint_point: Vector3 = hint_catcher.debug_closest_point()

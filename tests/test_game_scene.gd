@@ -3,6 +3,13 @@ extends GutTest
 const GAME_PATH: String = "res://scenes/game.tscn"
 
 
+func _frost_progress(game: Game) -> float:
+	var material: ShaderMaterial = game._frost_material
+	if material == null:
+		return 0.0
+	return float(material.get_shader_parameter("progress"))
+
+
 func test_game_scene_instantiates_cleanly() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	assert_not_null(scene, "game.tscn should load")
@@ -26,6 +33,22 @@ func test_game_scene_instantiates_cleanly() -> void:
 	assert_not_null(game.get_node_or_null("Inventory"), "inventory should exist")
 	assert_not_null(game.get_node_or_null("GameOver"), "game over screen should exist")
 	assert_not_null(game.get_node_or_null("PauseMenu"), "pause menu should exist")
+
+
+func test_frost_effect_only_starts_after_death() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	game._on_cold_changed(0.95)
+	assert_almost_eq(
+		_frost_progress(game), 0.0, 0.001, "a living boy should not be covered in frost"
+	)
+
+	game._play_freeze_effect()
+	await wait_process_frames(4)
+	assert_gt(_frost_progress(game), 0.0, "the frost should appear once the boy is dead")
 
 
 func test_game_starts_with_empty_inventory() -> void:
@@ -108,7 +131,7 @@ func test_catch_hint_floats_above_the_boy() -> void:
 	assert_false(hint.visible, "the hint should disappear when the debris leaves")
 
 
-func test_debris_countdown_is_10_to_30_seconds() -> void:
+func test_debris_countdown_is_5_to_10_seconds() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game
 	add_child_autofree(game)
@@ -116,8 +139,46 @@ func test_debris_countdown_is_10_to_30_seconds() -> void:
 
 	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 	var countdown: float = debris.get_countdown()
-	assert_gte(countdown, 9.0, "the next flyby should be at most half a minute away")
-	assert_lte(countdown, 30.0, "the countdown should start within the new range")
+	assert_gte(countdown, 4.8, "the next flyby should come quickly")
+	assert_lte(countdown, 10.0, "the countdown should stay within ten seconds")
+
+
+func test_debris_dot_previews_during_the_warning() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
+	debris.force_spawn(0.5)
+	await wait_process_frames(1)
+
+	var node: Node3D = debris.get_node_or_null("Debris") as Node3D
+	assert_not_null(node, "the junk should already show as a dot before it flies")
+	var first_scale: float = node.scale.x
+	assert_lt(first_scale, 0.2, "the preview should start as a tiny dot")
+
+	await get_tree().create_timer(2.0).timeout
+	assert_gt(node.scale.x, first_scale + 0.02, "the dot should grow as the junk approaches")
+	assert_lt(node.scale.x, 1.0, "it should still be small during the warning")
+
+
+func test_debris_flyby_is_silent() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
+	debris.force_spawn(0.5)
+	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.3).timeout
+
+	var node: Node3D = debris.get_node_or_null("Debris") as Node3D
+	assert_not_null(node, "the flyby should still exist")
+	for child: Node in node.get_children():
+		assert_false(
+			child is AudioStreamPlayer3D, "space junk should not make a sound while flying"
+		)
 
 
 func test_debris_appears_far_from_the_planet() -> void:

@@ -13,7 +13,6 @@ var _state: State = State.PLAYING
 var _stones_used: int = 0
 var _rope: RopeAnchor
 var _frost_material: ShaderMaterial
-var _current_cold: float = 0.0
 var _was_safe_before_growth: bool = false
 var _fade_tween: Tween
 var _frost_tween: Tween
@@ -245,8 +244,7 @@ func _update_stats() -> void:
 func _on_cold_changed(amount: float) -> void:
 	if _state == State.DEAD:
 		return
-	_current_cold = amount
-	_set_frost_progress(amount * 0.9)
+	# The icy screen is a death effect, not a warning: it stays off while alive.
 	_hud.set_cold(amount)
 
 
@@ -277,15 +275,19 @@ func _on_froze() -> void:
 	_hud.set_dead()
 	_hud.visible = false
 	AudioDirector.play_sfx("freeze", 0.0, 1.5)
-	_set_frost_progress(_current_cold)
-	if _frost_tween != null and _frost_tween.is_valid():
-		_frost_tween.kill()
-	_frost_tween = create_tween()
-	_frost_tween.tween_method(_set_frost_progress, _current_cold, 1.0, 1.8)
+	_play_freeze_effect()
 	await get_tree().create_timer(2.1).timeout
 	_game_over.open(_planet.radius, _stones_used)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func _play_freeze_effect() -> void:
+	_set_frost_progress(0.0)
+	if _frost_tween != null and _frost_tween.is_valid():
+		_frost_tween.kill()
+	_frost_tween = create_tween()
+	_frost_tween.tween_method(_set_frost_progress, 0.0, 1.0, 1.8)
 
 
 func _set_frost_progress(value: float) -> void:

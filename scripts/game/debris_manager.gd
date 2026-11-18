@@ -15,7 +15,10 @@ signal missed
 
 enum Phase { IDLE, WARNING, FLYING, CAUGHT }
 
-const WARNING_TIME: float = 6.0
+const WARNING_TIME: float = 10.0
+const PREVIEW_GROW_TIME: float = 14.0
+const PREVIEW_SCALE: float = 0.08
+const PREVIEW_ALPHA: float = 0.75
 const HALF_LENGTH: float = 24.0
 const FLIGHT_ALTITUDE: float = 1.85
 const APPROACH_LIFT: float = 7.0
@@ -49,6 +52,7 @@ var _hint_shown: bool = false
 var _glow_texture: GradientTexture2D
 var _flight_altitude: float = FLIGHT_ALTITUDE
 var _appear: float = 0.0
+var _growth: float = 0.0
 var _forced_size: float = 0.0
 var _mesh_material: StandardMaterial3D
 var _base_alpha: float = 1.0
@@ -59,7 +63,7 @@ var _light_energy: float = 0.0
 
 
 func _ready() -> void:
-	_countdown = randf_range(10.0, 30.0)
+	_countdown = randf_range(5.0, 10.0)
 	_glow_texture = _make_glow_texture()
 
 
@@ -78,6 +82,7 @@ func _process(delta: float) -> void:
 				_begin_event()
 		Phase.WARNING:
 			_warning_timer -= delta
+			_update_preview(delta)
 			if _warning_timer <= 0.0:
 				_launch_debris()
 		Phase.FLYING:
@@ -138,8 +143,19 @@ func _begin_event() -> void:
 	_tangent = random_tangent.normalized()
 	_axis = _target_dir.cross(_tangent).normalized()
 	_tangent = _axis.cross(_target_dir).normalized()
+	_along = -HALF_LENGTH
+	# Slow drift: the catch has to be read from the debris itself, since there
+	# is no marker on the ground any more.
+	_speed = randf_range(2.8, 4.2)
+	_flight_altitude = _altitude_for_size(_size)
+	_appear = 0.0
+	_growth = 0.0
 	_phase = Phase.WARNING
 	_warning_timer = WARNING_TIME
+	_build_debris()
+	if _trail != null:
+		_trail.emitting = false
+	_apply_visuals()
 	if not _hint_shown:
 		_hint_shown = true
 		warning_started.emit(_kind, _size)
@@ -163,16 +179,32 @@ func _random_flyby_direction() -> Vector3:
 
 
 func _launch_debris() -> void:
-	_along = -HALF_LENGTH
-	# Slow drift: the catch has to be read from the debris itself, since there
-	# is no marker on the ground any more.
-	_speed = randf_range(2.8, 4.2)
-	_flight_altitude = _altitude_for_size(_size)
-	_appear = 0.0
+	# The dot has been growing in the sky for ten seconds; now it starts moving.
 	_phase = Phase.FLYING
-	_build_debris()
+
+
+func _update_preview(delta: float) -> void:
+	_growth = minf(1.0, _growth + delta / PREVIEW_GROW_TIME)
+	_appear = minf(PREVIEW_ALPHA, _appear + delta / 1.2)
 	if _debris != null:
-		AudioDirector.play_sfx_3d("whoosh", _debris.global_position, _debris, -2.0, 16.0)
+		_debris.global_position = _surface_point(_along)
+	if _trail != null:
+		_trail.global_position = _surface_point(_along)
+		_trail.emitting = false
+	_apply_visuals()
+
+
+func _apply_visuals() -> void:
+	if _debris != null:
+		_debris.scale = Vector3.ONE * lerpf(PREVIEW_SCALE, 1.0, _growth)
+	if _mesh_material != null:
+		var color: Color = _mesh_material.albedo_color
+		color.a = _base_alpha * _appear
+		_mesh_material.albedo_color = color
+	if _glow != null:
+		_glow.modulate.a = _glow_alpha * _appear
+	if _light != null:
+		_light.light_energy = _light_energy * _appear
 
 
 func _altitude_for_size(size_factor: float) -> float:
@@ -185,17 +217,11 @@ func _altitude_for_size(size_factor: float) -> float:
 func _update_flight(delta: float) -> void:
 	_along += _speed * delta
 	_appear = minf(1.0, _appear + delta / SPAWN_FADE_TIME)
+	_growth = minf(1.0, _growth + delta / PREVIEW_GROW_TIME)
 	if _debris != null:
 		_debris.global_position = _surface_point(_along)
 		_debris.rotate_object_local(_spin_axis, _spin_speed * delta)
-	if _mesh_material != null:
-		var color: Color = _mesh_material.albedo_color
-		color.a = _base_alpha * _appear
-		_mesh_material.albedo_color = color
-	if _glow != null:
-		_glow.modulate.a = _glow_alpha * _appear
-	if _light != null:
-		_light.light_energy = _light_energy * _appear
+	_apply_visuals()
 	if _trail != null:
 		_trail.global_position = _surface_point(_along)
 		_trail.emitting = _appear > 0.3
@@ -412,10 +438,11 @@ func _clear_event() -> void:
 	_glow = null
 	_light = null
 	_appear = 0.0
+	_growth = 0.0
 	if _trail != null:
 		_trail.emitting = false
 		_trail.queue_free()
 		_trail = null
 	warning_cleared.emit()
 	_phase = Phase.IDLE
-	_countdown = randf_range(10.0, 30.0)
+	_countdown = randf_range(5.0, 10.0)
