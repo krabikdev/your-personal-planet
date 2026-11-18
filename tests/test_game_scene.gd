@@ -288,6 +288,30 @@ func test_the_automatic_catch_swings_the_net_without_a_whoosh() -> void:
 	)
 
 
+func test_the_smear_sound_plays_at_half_volume() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var smear: AudioStream = load("res://assets/audio/smear.wav")
+	game._start_apply(StoneItem.new(StoneItem.Kind.ROCK, 1.0, 1))
+
+	var played: bool = false
+	for audio_player: AudioStreamPlayer in AudioDirector._pool:
+		if audio_player.stream == smear:
+			played = true
+			var expected: float = linear_to_db(AudioDirector.sfx_volume) + Game.SMEAR_DB
+			assert_almost_eq(
+				audio_player.volume_db,
+				expected,
+				0.01,
+				"the smear should be about twice as quiet as before"
+			)
+	assert_true(played, "smearing a stone should start the smear sound")
+	assert_almost_eq(Game.SMEAR_DB, -5.5, 0.01, "half the loudness is six decibels down")
+
+
 func test_hud_planet_size_is_just_a_value() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game

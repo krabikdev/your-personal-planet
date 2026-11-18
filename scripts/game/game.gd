@@ -7,6 +7,8 @@ extends Node3D
 enum State { PLAYING, INVENTORY, APPLYING, PAUSED, DEAD }
 
 const SUN_DIRECTION := Vector3(-0.42, 0.58, 0.36)
+## The smear used to sit at +0.5 dB; -5.5 dB is roughly half the loudness.
+const SMEAR_DB: float = -5.5
 
 var _model: InventoryModel = InventoryModel.new()
 var _state: State = State.PLAYING
@@ -214,7 +216,7 @@ func _start_apply(stone: StoneItem) -> void:
 	_hud.set_inventory_count(_model.size())
 	_player.start_smearing()
 	_camera_rig.set_focus(1.55)
-	AudioDirector.play_sfx("smear", 0.0, 0.5)
+	AudioDirector.play_sfx("smear", 0.0, SMEAR_DB)
 	var material_name: String = "кригу" if stone.is_ice() else "камінь"
 	_hud.show_toast("Ти вмазуєш %s у землю..." % material_name, Color("d9cbb8"), 2.6)
 	await get_tree().create_timer(3.0).timeout
