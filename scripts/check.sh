@@ -88,8 +88,8 @@ header() {
 
 now_ms() { date +%s%N; }
 
-elapsed() {
-    local ms=$((($(now_ms) - $1) / 1000000))
+duration_text() {
+    local ms=$1
     if [ "$ms" -lt 1000 ]; then
         printf '%dms' "$ms"
     else
@@ -97,37 +97,70 @@ elapsed() {
     fi
 }
 
+elapsed() {
+    duration_text "$((($(now_ms) - $1) / 1000000))"
+}
+
 gd_files=()
 while IFS= read -r file; do
     gd_files+=("$file")
 done < <(find scripts ui tests scenes -type f -name '*.gd' -not -path '*/addons/*' 2>/dev/null | sort)
 
-# ------------------------------------------------------------------- 1. format
-header "gdformat --check"
-started=$(now_ms)
+# ------------------------------------------------------- 1+2. format and lint
+# Both only read the files and Python startup dominates the cost, so they run
+# side by side and the summary still reports each on its own.
+format_log=$(mktemp)
+lint_log=$(mktemp)
+format_exit=0
+lint_exit=0
+format_ms=0
+lint_ms=0
+
 if [ "${#gd_files[@]}" -eq 0 ]; then
-    echo "(no GDScript files to format yet)"
-    add_result gdformat PASS "no files" "$(elapsed "$started")"
-elif gdformat --check "${gd_files[@]}"; then
-    echo "Formatting OK (${#gd_files[@]} files)"
-    add_result gdformat PASS "${#gd_files[@]} files" "$(elapsed "$started")"
+    printf '(no GDScript files yet)\n' >"$format_log"
+    printf '(no GDScript files yet)\n' >"$lint_log"
 else
-    echo "Formatting violations found. Fix with: gdformat scripts ui tests scenes" >&2
-    add_result gdformat FAIL "needs formatting" "$(elapsed "$started")"
+    started=$(now_ms)
+    gdformat --check "${gd_files[@]}" >"$format_log" 2>&1 &
+    format_pid=$!
+    gdlint "${gd_files[@]}" >"$lint_log" 2>&1 &
+    lint_pid=$!
+    wait "$format_pid"
+    format_exit=$?
+    format_ms=$(($(now_ms) - started))
+    wait "$lint_pid"
+    lint_exit=$?
+    lint_ms=$(($(now_ms) - started))
+    format_ms=$((format_ms / 1000000))
+    lint_ms=$((lint_ms / 1000000))
 fi
 
-# --------------------------------------------------------------------- 2. lint
-header "gdlint"
-started=$(now_ms)
+header "gdformat --check"
 if [ "${#gd_files[@]}" -eq 0 ]; then
-    echo "(no GDScript files to lint yet)"
-    add_result gdlint PASS "no files" "$(elapsed "$started")"
-elif gdlint "${gd_files[@]}"; then
-    echo "Lint OK"
-    add_result gdlint PASS "clean" "$(elapsed "$started")"
+    cat "$format_log"
+    add_result gdformat PASS "no files" "$(duration_text "$format_ms")"
+elif [ "$format_exit" -eq 0 ]; then
+    echo "Formatting OK (${#gd_files[@]} files)"
+    add_result gdformat PASS "${#gd_files[@]} files" "$(duration_text "$format_ms")"
 else
-    add_result gdlint FAIL "violations" "$(elapsed "$started")"
+    cat "$format_log"
+    echo "Formatting violations found. Fix with: gdformat scripts ui tests scenes" >&2
+    add_result gdformat FAIL "needs formatting" "$(duration_text "$format_ms")"
 fi
+
+header "gdlint"
+if [ "${#gd_files[@]}" -eq 0 ]; then
+    cat "$lint_log"
+    add_result gdlint PASS "no files" "$(duration_text "$lint_ms")"
+elif [ "$lint_exit" -eq 0 ]; then
+    echo "Lint OK"
+    add_result gdlint PASS "clean" "$(duration_text "$lint_ms")"
+else
+    cat "$lint_log"
+    add_result gdlint FAIL "violations" "$(duration_text "$lint_ms")"
+fi
+
+rm -f "$format_log" "$lint_log"
 
 # ------------------------------------------------------------- 3. project load
 if [ "$run_load" -eq 1 ]; then
@@ -179,7 +212,7 @@ if [ "$run_tests" -eq 1 ]; then
         done
     fi
 
-    gut_output=$("$godot" --headless --path "$project_root" \
+    gut_output=$("$godot" --headless --fixed-fps 60 --path "$project_root" \
         -s addons/gut/gut_cmdln.gd \
         "${gut_targets[@]}" -gexit -glog=1 2>&1)
     gut_exit=$?

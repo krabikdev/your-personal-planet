@@ -23,7 +23,7 @@ func test_stake_action_is_mapped_to_the_right_mouse_button() -> void:
 
 func test_pressing_the_right_mouse_button_toggles_the_stake() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 	var player: Boy = game.get_node("Player") as Boy
 
 	var press := InputEventAction.new()
@@ -38,7 +38,7 @@ func test_pressing_the_right_mouse_button_toggles_the_stake() -> void:
 
 func test_the_boy_hammers_a_stake_into_the_ground() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -62,7 +62,7 @@ func test_the_boy_hammers_a_stake_into_the_ground() -> void:
 
 func test_a_taut_rope_stops_the_boy_and_throws_him_back() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -85,7 +85,7 @@ func test_a_taut_rope_stops_the_boy_and_throws_him_back() -> void:
 
 func test_holding_space_reels_the_boy_back_to_the_surface() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -93,7 +93,7 @@ func test_holding_space_reels_the_boy_back_to_the_surface() -> void:
 	var up: Vector3 = player.get_up()
 	player.global_position = planet.get_center() + up * (planet.radius + 1.6)
 	player.velocity = Vector3.ZERO
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 
 	Input.action_press("jump")
 	await get_tree().create_timer(0.8).timeout
@@ -104,7 +104,7 @@ func test_holding_space_reels_the_boy_back_to_the_surface() -> void:
 
 func test_space_slows_the_flight_instead_of_throwing_the_boy_back() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -132,7 +132,7 @@ func test_space_slows_the_flight_instead_of_throwing_the_boy_back() -> void:
 
 func test_a_rope_snap_does_not_play_the_flying_whoosh() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	player.plant_stake()
@@ -147,7 +147,7 @@ func test_a_rope_snap_does_not_play_the_flying_whoosh() -> void:
 
 func test_removing_the_stake_removes_the_rope() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	player.plant_stake()
@@ -163,7 +163,7 @@ func test_removing_the_stake_removes_the_rope() -> void:
 
 func test_the_stake_has_its_own_soil_sounds() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	assert_true(player._streams.has("stake_plant"), "planting should have a soil-dig sound")
@@ -188,7 +188,7 @@ func test_the_stake_has_its_own_soil_sounds() -> void:
 
 func test_a_tethered_boy_flies_sideways_faster_than_he_walks() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -198,10 +198,10 @@ func test_a_tethered_boy_flies_sideways_faster_than_he_walks() -> void:
 	var up: Vector3 = player.get_up()
 	player.global_position = planet.get_center() + up * (planet.radius + 2.0)
 	player.velocity = Vector3.ZERO
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 
 	Input.action_press("move_right")
-	await wait_physics_frames(24)
+	await wait_physics_frames(12)
 	var after_up: Vector3 = player.get_up()
 	var tangent: Vector3 = player.velocity - after_up * player.velocity.dot(after_up)
 	Input.action_release("move_right")
@@ -215,7 +215,7 @@ func test_a_tethered_boy_flies_sideways_faster_than_he_walks() -> void:
 
 func test_reeling_is_three_times_faster_and_plays_a_winch() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -225,7 +225,7 @@ func test_reeling_is_three_times_faster_and_plays_a_winch() -> void:
 	var up: Vector3 = player.get_up()
 	player.global_position = planet.get_center() + up * (planet.radius + 10.0)
 	player.velocity = Vector3.ZERO
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 
 	assert_almost_eq(Boy.ROPE_CRAWL_SPEED, 4.05, 0.01, "reeling should be three times faster")
 
@@ -247,13 +247,13 @@ func test_reeling_is_three_times_faster_and_plays_a_winch() -> void:
 	)
 
 	Input.action_release("jump")
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 	assert_false(player.is_winching(), "the winch should stop when Space is released")
 
 
 func test_a_planted_stake_prevents_freezing() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -273,7 +273,7 @@ func test_a_planted_stake_prevents_freezing() -> void:
 
 func test_wasd_steers_the_boy_while_the_winch_pulls_him_in() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -283,15 +283,15 @@ func test_wasd_steers_the_boy_while_the_winch_pulls_him_in() -> void:
 	var up: Vector3 = player.get_up()
 	player.global_position = planet.get_center() + up * (planet.radius + 6.0)
 	player.velocity = Vector3.ZERO
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 
 	Input.action_press("jump")
-	await wait_physics_frames(24)
+	await wait_physics_frames(12)
 	var sideways_without: Vector3 = player.velocity - up * player.velocity.dot(up)
 
 	var altitude_before: float = player.get_altitude()
 	Input.action_press("move_right")
-	await wait_physics_frames(24)
+	await wait_physics_frames(12)
 	var sideways_with: Vector3 = player.velocity - up * player.velocity.dot(up)
 	var altitude_after: float = player.get_altitude()
 	var facing: Vector3 = player._facing
@@ -317,7 +317,7 @@ func test_wasd_steers_the_boy_while_the_winch_pulls_him_in() -> void:
 
 func test_space_alone_does_not_steer_the_boy() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -327,10 +327,10 @@ func test_space_alone_does_not_steer_the_boy() -> void:
 	var up: Vector3 = player.get_up()
 	player.global_position = planet.get_center() + up * (planet.radius + 6.0)
 	player.velocity = Vector3.ZERO
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 
 	Input.action_press("jump")
-	await wait_physics_frames(24)
+	await wait_physics_frames(12)
 	var sideways: Vector3 = player.velocity - up * player.velocity.dot(up)
 	Input.action_release("jump")
 
@@ -339,7 +339,7 @@ func test_space_alone_does_not_steer_the_boy() -> void:
 
 func test_the_rope_lies_on_the_ground_when_the_boy_walks_around_the_planet() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -354,7 +354,7 @@ func test_the_rope_lies_on_the_ground_when_the_boy_walks_around_the_planet() -> 
 	var direction: Vector3 = up.rotated(axis.normalized(), 1.0)
 	player.global_position = centre + direction * (planet.radius + 0.3)
 	player.velocity = Vector3.ZERO
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 	player.rope.debug_advance(0.8)
 
 	var points: PackedVector3Array = player.rope.get_rope_points()
@@ -374,7 +374,7 @@ func test_the_rope_lies_on_the_ground_when_the_boy_walks_around_the_planet() -> 
 
 func test_the_rope_pulls_straight_when_the_boy_hangs_in_the_air() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -398,7 +398,7 @@ func test_the_rope_pulls_straight_when_the_boy_hangs_in_the_air() -> void:
 
 func test_the_rope_never_jumps_to_the_far_side_of_the_planet() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -413,12 +413,12 @@ func test_the_rope_never_jumps_to_the_far_side_of_the_planet() -> void:
 		axis = stake_dir.cross(Vector3.RIGHT).normalized()
 
 	var walked: float = 2.4
-	for step: int in 24:
-		var angle: float = walked * float(step + 1) / 24.0
+	for step: int in 12:
+		var angle: float = walked * float(step + 1) / 12.0
 		var direction: Vector3 = stake_dir.rotated(axis, angle)
 		player.global_position = centre + direction * (planet.radius + 0.03)
 		player.velocity = Vector3.ZERO
-		await wait_physics_frames(2)
+		await wait_physics_frames(1)
 	player.rope.debug_advance(0.5)
 
 	var highest: float = -INF
@@ -436,7 +436,7 @@ func test_the_rope_never_jumps_to_the_far_side_of_the_planet() -> void:
 
 func test_the_stake_can_only_be_pulled_out_on_the_ground() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -451,14 +451,14 @@ func test_the_stake_can_only_be_pulled_out_on_the_ground() -> void:
 	assert_true(player.rope.is_planted(), "the stake must stay tied while the boy is in the air")
 
 	player.snap_to_surface()
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 	player.remove_stake()
 	assert_false(player.rope.is_planted(), "a boy standing on the ground can pull the stake out")
 
 
 func test_a_resting_rope_stays_where_it_was_laid() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -488,7 +488,7 @@ func test_a_resting_rope_stays_where_it_was_laid() -> void:
 
 func test_hitting_the_rope_limit_is_a_soft_stop() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -508,7 +508,7 @@ func test_hitting_the_rope_limit_is_a_soft_stop() -> void:
 
 func test_the_rope_is_tied_to_the_dukes_hand() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(3)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	player.plant_stake()

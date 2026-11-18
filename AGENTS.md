@@ -113,7 +113,7 @@ The pipeline is the only reviewer, and it is also the slowest thing in the loop.
 | --- | --- | --- | --- |
 | After each edit | `./scripts/check.sh --quick` | `... -File scripts\check.ps1 -Quick` | ~3 s |
 | One area touched | `./scripts/check.sh --test rope` | `... -File scripts\check.ps1 -Test rope` | that file only |
-| Before shipping, or any change to scenes, `project.godot`, the check scripts | `./scripts/check.sh` | `... -File scripts\check.ps1` | full suite |
+| Before shipping, or any change to scenes, `project.godot`, the check scripts | `./scripts/check.sh` | `... -File scripts\check.ps1` | ~10 s |
 
 Stages, in order, all of them failing the run:
 
@@ -131,16 +131,14 @@ Rules for using it:
 
 Rules for the tests themselves:
 
-- **No test may sleep.** A test that waits on `create_timer` for more than ~0.5 s of wall time is
-  too slow; the suite is a gate people run often.
-- If something needs time to settle, add a `debug_*` hook on the node and step it directly
-  (`RopeAnchor.debug_advance`, `DebrisManager.debug_launch_now`) instead of waiting.
-- Prefer `wait_physics_frames(1..3)` over timers, and prefer calling the method under test over
-  watching an animation play out.
-- A test proves a rule, not a timeline. Test the endpoint through the API; do not re-run the whole
-  game for a minute to observe it.
-- Keep the full suite near ten seconds. If a new test would push it past that, make the test
-  cheaper or drop it.
+- The runner pins the frame clock (`--fixed-fps 60`), so `create_timer` and `wait_physics_frames`
+  cost CPU rather than real seconds. A short settle is cheap; a minute of gameplay is not.
+- Prefer a `debug_*` hook over watching something play out (`RopeAnchor.debug_advance`,
+  `DebrisManager.debug_launch_now`), and keep frame waits at one or two.
+- A test proves a rule, not a timeline. Test the endpoint through the API; do not replay a whole
+  sequence to observe it.
+- Keep the full run near ten seconds. If a new test would push it past that, make it cheaper or
+  drop it.
 
 ## Docs and APIs
 
