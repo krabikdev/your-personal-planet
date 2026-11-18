@@ -7,12 +7,17 @@ extends StaticBody3D
 signal radius_changed(new_radius: float)
 signal growth_finished(added_radius: float)
 
+## One measurement per SphereMesh resource, however many planets use it.
+static var _sphere_ratios: Dictionary[int, Vector2] = {}
+
 @export var initial_radius: float = 5.0
 
 var radius: float = 5.0
 
 var _sphere_shape: SphereShape3D
 var _surface_material: ShaderMaterial
+var _surface_mid_ratio: float = 1.0
+var _surface_spread: float = 0.0
 var _growing: bool = false
 var _grow_tween: Tween
 
@@ -23,10 +28,61 @@ var _grow_tween: Tween
 func _ready() -> void:
 	radius = initial_radius
 	_surface_material = _surface.material_override as ShaderMaterial
+	_measure_surface_sphere()
 	_sphere_shape = SphereShape3D.new()
 	_sphere_shape.radius = radius
 	_collision.shape = _sphere_shape
 	_apply_radius(radius)
+
+
+## A sphere that is drawn as triangles is not a sphere: every flat face sits a
+## little inside the true sphere, and how far it sits grows with the radius. At
+## five metres the gap is a millimetre; at a few hundred it is tens of
+## centimetres, which is why objects on the ground start to look like they are
+## floating once the planet grows. Measuring the mesh lets us scale it so the
+## drawn faces are centred on the collision sphere instead.
+func _measure_surface_sphere() -> void:
+	_surface_mid_ratio = 1.0
+	_surface_spread = 0.0
+	var mesh: Mesh = _surface.mesh
+	if mesh == null or mesh.get_surface_count() == 0:
+		return
+	var mesh_id: int = mesh.get_instance_id()
+	if _sphere_ratios.has(mesh_id):
+		_surface_mid_ratio = _sphere_ratios[mesh_id].x
+		_surface_spread = _sphere_ratios[mesh_id].y
+		return
+	var arrays: Array = mesh.surface_get_arrays(0)
+	if arrays.size() < Mesh.ARRAY_MAX:
+		return
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	if indices.is_empty():
+		return
+	var lowest: float = 1.0
+	var highest: float = 0.0
+	for i: int in range(0, indices.size(), 3):
+		var a: Vector3 = vertices[indices[i]]
+		var b: Vector3 = vertices[indices[i + 1]]
+		var c: Vector3 = vertices[indices[i + 2]]
+		var cross: Vector3 = (b - a).cross(c - a)
+		if cross.length_squared() < 0.000000000001:
+			continue
+		var distance: float = absf(cross.normalized().dot(a))
+		lowest = minf(lowest, distance)
+		highest = maxf(highest, distance)
+	if highest <= 0.0 or lowest <= 0.5:
+		return
+	_surface_mid_ratio = (lowest + highest) * 0.5
+	_surface_spread = (highest - lowest) * 0.5
+	_sphere_ratios[mesh_id] = Vector2(_surface_mid_ratio, _surface_spread)
+
+
+## How far the drawn ground can stray from the collision sphere, in metres.
+func get_surface_error() -> float:
+	if _surface_mid_ratio <= 0.0:
+		return 0.0
+	return radius * _surface_spread / _surface_mid_ratio
 
 
 func get_center() -> Vector3:
@@ -88,7 +144,7 @@ func apply_radius(value: float) -> void:
 
 func _apply_radius(value: float) -> void:
 	radius = maxf(value, 2.0)
-	_surface.scale = Vector3.ONE * radius
+	_surface.scale = Vector3.ONE * (radius / _surface_mid_ratio)
 	if _sphere_shape != null:
 		_sphere_shape.radius = radius
 	if _surface_material != null:

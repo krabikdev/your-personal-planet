@@ -78,6 +78,33 @@ func _walk_sample(radius: float) -> Dictionary:
 	}
 
 
+func test_the_drawn_ground_stays_on_the_collision_sphere() -> void:
+	var game: Game = (load(GAME_PATH) as PackedScene).instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var planet: Planet = game.get_node("Planet") as Planet
+	var surface: MeshInstance3D = planet.get_node("%Surface") as MeshInstance3D
+	assert_lt(planet.get_surface_error(), 0.005, "a small planet draws its ground on the sphere")
+
+	planet.apply_radius(50.0)
+	await wait_process_frames(1)
+	assert_lt(
+		planet.get_surface_error(), 0.01, "at fifty metres the gap must stay under a centimetre"
+	)
+	assert_gt(
+		surface.scale.x, planet.radius, "the drawn sphere is pushed out to meet its own faces"
+	)
+
+	planet.apply_radius(200.0)
+	await wait_process_frames(1)
+	assert_lt(
+		planet.get_surface_error(),
+		0.03,
+		"even a two hundred metre planet must not leave the duke floating",
+	)
+
+
 func test_the_walk_is_as_steady_on_a_200_metre_planet_as_at_home() -> void:
 	var home: Dictionary = await _walk_sample(PlanetProfile.BASE_RADIUS)
 	var giant: Dictionary = await _walk_sample(200.0)

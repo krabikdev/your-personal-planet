@@ -105,16 +105,66 @@ func test_the_hud_shows_how_much_water_is_left() -> void:
 	assert_string_contains(label.text, "2.0")
 
 
+## Pours for a stretch of game time without waiting out real frames: the
+## watering loop is the thing under test, not the renderer.
+func _pour(game: Game, seconds: float) -> void:
+	var steps: int = ceili(seconds * 60.0)
+	for _i: int in steps:
+		game._update_watering(1.0 / 60.0)
+
+
+func test_a_stalk_needs_three_seconds_of_watering_before_it_shows() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+	var garden: Garden = game.get_garden()
+	var player: Boy = game.get_node("Player") as Boy
+	await _wait_for_ground(player)
+
+	game.debug_grant_stone(StoneItem.Kind.WATERING_CAN)
+	game.debug_grant_water(8.0)
+	Input.action_press("interact")
+	_pour(game, 2.5)
+	assert_eq(garden.get_plant_count(), 0, "two and a half seconds only soak the dust")
+
+	_pour(game, 0.6)
+	assert_eq(garden.get_plant_count(), 1, "three unbroken seconds sprout a stalk")
+	Input.action_release("interact")
+
+
+func test_letting_go_starts_the_three_seconds_again() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+	var garden: Garden = game.get_garden()
+	var player: Boy = game.get_node("Player") as Boy
+	await _wait_for_ground(player)
+
+	game.debug_grant_stone(StoneItem.Kind.WATERING_CAN)
+	game.debug_grant_water(8.0)
+	Input.action_press("interact")
+	_pour(game, 2.5)
+	Input.action_release("interact")
+	game._update_watering(1.0 / 60.0)
+
+	Input.action_press("interact")
+	_pour(game, 2.0)
+	assert_eq(garden.get_plant_count(), 0, "the break throws the count away")
+
+	_pour(game, 1.1)
+	assert_eq(garden.get_plant_count(), 1, "a fresh three seconds still sprouts it")
+	Input.action_release("interact")
+
+
 func test_watering_sprouts_a_plant_in_front_of_the_duke() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(3)
 	var player: Boy = game.get_node("Player") as Boy
 	var garden: Garden = game.get_garden()
+	await _wait_for_ground(player)
 
 	game.debug_grant_stone(StoneItem.Kind.WATERING_CAN)
-	game.debug_grant_water(2.0)
+	game.debug_grant_water(8.0)
 	Input.action_press("interact")
-	await wait_process_frames(12)
+	_pour(game, 3.2)
 	Input.action_release("interact")
 
 	assert_eq(garden.get_plant_count(), 1, "a stalk should grow where the water lands")

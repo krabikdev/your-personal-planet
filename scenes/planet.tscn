@@ -9,8 +9,8 @@ radius = 5.0
 [sub_resource type="SphereMesh" id="SphereMesh_surface"]
 radius = 1.0
 height = 2.0
-radial_segments = 96
-rings = 48
+radial_segments = 192
+rings = 96
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_surface"]
 shader = ExtResource("2_surface")
