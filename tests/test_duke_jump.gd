@@ -9,6 +9,56 @@ func _make_game() -> Game:
 	return game
 
 
+func test_holding_space_charges_the_jump_on_the_ground() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	Input.action_press("jump")
+	await wait_physics_frames(30)
+
+	assert_true(player.is_charging(), "holding Space loads the jump")
+	assert_true(player.is_on_floor(), "the boy must not leave the ground while charging")
+	assert_almost_eq(player.get_jump_charge(), 0.5, 0.06, "half a second is half a charge")
+
+	Input.action_release("jump")
+	await wait_physics_frames(1)
+	assert_false(player.is_charging(), "releasing fires the jump")
+
+
+func test_a_short_charge_is_a_small_hop() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var full: float = player.planet.get_jump_speed()
+	Input.action_press("jump")
+	await wait_physics_frames(9)
+	Input.action_release("jump")
+	await wait_physics_frames(1)
+
+	var speed: float = player.velocity.dot(player.get_up())
+	assert_gt(speed, 0.5, "a tap still leaves the ground")
+	assert_lt(speed, full * 0.7, "a short hold must stay a small hop")
+
+
+func test_a_two_second_charge_reaches_the_full_jump() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var full: float = player.planet.get_jump_speed()
+	Input.action_press("jump")
+	await wait_physics_frames(121)
+	Input.action_release("jump")
+	await wait_physics_frames(1)
+
+	var speed: float = player.velocity.dot(player.get_up())
+	assert_almost_eq(
+		speed, full, full * 0.12, "two seconds of holding should reach the advertised jump"
+	)
+
+
 func test_coyote_time_survives_walking_off_a_ledge() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(2)
@@ -23,6 +73,7 @@ func test_coyote_time_survives_walking_off_a_ledge() -> void:
 	Input.action_press("jump")
 	await wait_physics_frames(1)
 	Input.action_release("jump")
+	await wait_physics_frames(1)
 
 	assert_gt(
 		player.velocity.dot(player.get_up()),

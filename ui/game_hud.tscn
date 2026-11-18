@@ -279,5 +279,5 @@ autowrap_mode = 3
 layout_mode = 2
 mouse_filter = 2
 theme_type_variation = &"AccentLabel"
-text = "WASD  рух     ·     Пробіл  стрибок     ·     I  сумка"
+text = "WASD  рух     ·     Пробіл (тримай — вище)  стрибок     ·     I  сумка"
 horizontal_alignment = 1

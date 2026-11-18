@@ -59,6 +59,7 @@ const NET_SWING_LIFT: float = 0.9
 
 const WATER_ARM: float = 1.05
 const WATER_RAMP: float = 7.0
+const CHARGE_CROUCH: float = 0.12
 const CAN_TILT: float = 0.62
 const CAN_BODY_COLOR := Color("7f9a90")
 const CAN_RUST_COLOR := Color("8a5a3b")
@@ -74,6 +75,7 @@ var _can: Node3D
 var _can_pour: GPUParticles3D
 var _watering: bool = false
 var _water_amount: float = 0.0
+var _charge: float = 0.0
 var _hip_bones: Array[int] = []
 var _knee_bones: Array[int] = []
 var _arm_bones: Array[int] = []
@@ -270,6 +272,12 @@ func set_watering(active: bool) -> void:
 
 func is_watering() -> bool:
 	return _watering
+
+
+## While the jump is being charged the duke sinks into his knees, so the player
+## can see how much spring is loaded.
+func set_charging(amount: float) -> void:
+	_charge = clampf(amount, 0.0, 1.0)
 
 
 func get_hand_position() -> Vector3:
@@ -490,6 +498,7 @@ func _update_body(delta: float) -> void:
 		target = SMEAR_CROUCH
 	elif _sitting:
 		target = SIT_CROUCH
+	target -= CHARGE_CROUCH * _charge
 	_body_height = lerpf(_body_height, target, 1.0 - exp(-9.0 * delta))
 	var bob: float = 0.0
 	var sway: float = 0.0

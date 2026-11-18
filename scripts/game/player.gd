@@ -27,6 +27,11 @@ const ROPE_STEER_PULL: float = 0.45
 const ROPE_ARRIVE: float = 1.2
 const ROPE_HANG_FADE: float = 2.0
 const ROPE_HANG_FLOOR: float = 0.4
+## Jumping is a charge: hold Space on the ground and the jump grows for two
+## seconds, then fires by itself at the full height.
+const JUMP_CHARGE_TIME: float = 2.0
+## A tap still leaves the ground, with this share of the full jump height.
+const JUMP_MIN_HEIGHT_FRACTION: float = 0.15
 ## How far in front of his feet the watering can reaches.
 const WATER_REACH: float = 1.05
 const MAX_HEALTH: float = 100.0
@@ -66,6 +71,8 @@ var _rope_brake_latch: bool = false
 var _rope_done: bool = false
 var _winch_active: bool = false
 var _regen_clock: float = 0.0
+var _charging: bool = false
+var _jump_charge: float = 0.0
 var _streams: Dictionary[String, AudioStream] = {}
 
 @onready var _model: PrinceModel = %Visual
@@ -185,6 +192,15 @@ func get_max_health() -> float:
 	return MAX_HEALTH
 
 
+## The jump is charged on the ground: 0..2 seconds of holding Space.
+func is_charging() -> bool:
+	return _charging
+
+
+func get_jump_charge() -> float:
+	return _jump_charge
+
+
 ## Monsters bite; acid does not. Zero health ends the run the same way cold
 ## does: the boy freezes where he stands.
 func take_damage(amount: float) -> void:
@@ -217,6 +233,7 @@ func get_speed_ratio() -> float:
 
 func start_smearing() -> void:
 	set_watering(false)
+	_cancel_charge()
 	locked = true
 	smearing = true
 	velocity = Vector3.ZERO
@@ -243,6 +260,7 @@ func freeze() -> void:
 	if dead:
 		return
 	set_watering(false)
+	_cancel_charge()
 	dead = true
 	locked = true
 	_set_winch_playing(false)
@@ -383,6 +401,7 @@ func _physics_process(delta: float) -> void:
 	_update_cold(delta)
 	_update_health(delta)
 	_model.set_motion(get_speed_ratio(), grounded_now, _running, velocity.length(), velocity)
+	_model.set_charging(_jump_charge / JUMP_CHARGE_TIME if _charging else 0.0)
 	var hanging: bool = rope != null and rope.is_planted() and not grounded_now and _rope_crawl
 	if hanging:
 		var hang: float = clampf((get_altitude() - ROPE_HANG_FLOOR) / ROPE_HANG_FADE, 0.0, 1.0)
@@ -512,25 +531,70 @@ func _apply_gravity(up: Vector3, delta: float) -> void:
 
 
 func _handle_jump(up: Vector3, grounded: bool) -> void:
-	if Input.is_action_just_pressed("jump"):
-		_jump_buffer = jump_buffer_time
-	else:
-		_jump_buffer = maxf(_jump_buffer - get_physics_process_delta_time(), 0.0)
-	if grounded or get_altitude() < JUMP_GROUND_ALLOWANCE:
+	var delta: float = get_physics_process_delta_time()
+	var near_ground: bool = grounded or get_altitude() < JUMP_GROUND_ALLOWANCE
+	if near_ground:
 		_coyote = coyote_time
 	else:
-		_coyote = maxf(_coyote - get_physics_process_delta_time(), 0.0)
+		_coyote = maxf(_coyote - delta, 0.0)
+	var can_start: bool = near_ground or _coyote > 0.0
+
+	if Input.is_action_just_pressed("jump"):
+		if can_start:
+			_charging = true
+			_jump_charge = 0.0
+		else:
+			_jump_buffer = jump_buffer_time
+	else:
+		_jump_buffer = maxf(_jump_buffer - delta, 0.0)
+
+	if _charging:
+		# Walking off a ledge mid-charge drops the charge instead of firing a
+		# jump from mid air.
+		if not near_ground and get_altitude() > JUMP_GROUND_ALLOWANCE * 6.0:
+			_cancel_charge()
+			return
+		_jump_charge = minf(_jump_charge + delta, JUMP_CHARGE_TIME)
+		if _jump_charge >= JUMP_CHARGE_TIME or Input.is_action_just_released("jump"):
+			_launch_jump(up)
+		return
+
+	# A press a moment before touchdown: hop on landing, or keep charging if the
+	# key is still held.
 	if _jump_buffer > 0.0 and _coyote > 0.0:
-		var tangent: Vector3 = velocity - up * velocity.dot(up)
-		velocity = tangent + up * planet.get_jump_speed()
 		_jump_buffer = 0.0
-		_coyote = 0.0
-		_fall_speed = 0.0
-		if rope != null and rope.is_planted():
-			# Keep the launching press from instantly reeling the rope in.
-			_rope_brake_latch = true
-		_play("jump", -4.0, 0.08)
-		jumped.emit()
+		if Input.is_action_pressed("jump"):
+			_charging = true
+			_jump_charge = 0.0
+		else:
+			_launch_jump(up)
+
+
+## Fires the jump with however much of the two-second charge was built up.
+## A full charge reaches the jump height the planet profile advertises.
+func _launch_jump(up: Vector3) -> void:
+	var ratio: float = clampf(_jump_charge / JUMP_CHARGE_TIME, 0.0, 1.0)
+	# Height, not speed, grows linearly with the hold: a tap is a small hop and
+	# a full two-second charge reaches the height the HUD advertises.
+	var height_ratio: float = lerpf(JUMP_MIN_HEIGHT_FRACTION, 1.0, ratio)
+	var speed: float = planet.get_jump_speed() * sqrt(height_ratio)
+	var tangent: Vector3 = velocity - up * velocity.dot(up)
+	velocity = tangent + up * speed
+	_charging = false
+	_jump_charge = 0.0
+	_jump_buffer = 0.0
+	_coyote = 0.0
+	_fall_speed = 0.0
+	if rope != null and rope.is_planted():
+		# Keep the launching press from instantly reeling the rope in.
+		_rope_brake_latch = true
+	_play("jump", -4.0, 0.08)
+	jumped.emit()
+
+
+func _cancel_charge() -> void:
+	_charging = false
+	_jump_charge = 0.0
 
 
 func _handle_movement(up: Vector3, delta: float) -> void:

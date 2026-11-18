@@ -270,6 +270,25 @@ func _setup() -> void:
 			Input.action_release("move_back")
 		"pause":
 			game.debug_open_pause()
+		"charge":
+			var charge_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			var charge_player: Boy = game.get_node("Player") as Boy
+			charge_rig.base_lift = 1.6
+			charge_rig.base_distance = 4.2
+			await get_tree().create_timer(0.5).timeout
+			Input.action_press("jump")
+			await get_tree().create_timer(2.1).timeout
+			Input.action_release("jump")
+			await get_tree().create_timer(0.6).timeout
+			print(
+				(
+					"CHARGE speed=%.1f height=%.1f"
+					% [
+						charge_player.velocity.dot(charge_player.get_up()),
+						charge_player.get_altitude(),
+					]
+				)
+			)
 		"keyjump":
 			await get_tree().create_timer(0.5).timeout
 			var press := InputEventKey.new()
