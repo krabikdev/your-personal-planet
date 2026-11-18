@@ -194,6 +194,16 @@ func freeze() -> void:
 	froze.emit()
 
 
+func debug_set_cold(amount: float) -> void:
+	var value: float = clampf(amount, 0.0, 1.0)
+	if is_equal_approx(value, _cold):
+		return
+	_cold = value
+	cold_changed.emit(_cold)
+	if _cold >= 1.0:
+		freeze()
+
+
 func debug_jump() -> void:
 	if planet == null or dead or locked:
 		return

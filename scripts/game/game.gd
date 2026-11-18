@@ -7,6 +7,7 @@ extends Node3D
 enum State { PLAYING, INVENTORY, APPLYING, PAUSED, DEAD }
 
 const SUN_DIRECTION := Vector3(-0.42, 0.58, 0.36)
+const DEBUG_PANEL_SCENE: PackedScene = preload("res://ui/debug_panel.tscn")
 ## The smear used to sit at +0.5 dB; -5.5 dB is roughly half the loudness.
 const SMEAR_DB: float = -5.5
 
@@ -14,6 +15,7 @@ var _model: InventoryModel = InventoryModel.new()
 var _state: State = State.PLAYING
 var _stones_used: int = 0
 var _rope: RopeAnchor
+var _debug_panel: DebugPanel
 var _frost_material: ShaderMaterial
 var _was_safe_before_growth: bool = false
 var _fade_tween: Tween
@@ -76,6 +78,10 @@ func _ready() -> void:
 	_pause_menu.resume_requested.connect(_on_pause_resume)
 	_pause_menu.menu_requested.connect(_on_main_menu)
 
+	_debug_panel = DEBUG_PANEL_SCENE.instantiate() as DebugPanel
+	add_child(_debug_panel)
+	_debug_panel.action_requested.connect(_on_debug_action)
+
 	_update_stats()
 	_hud.set_inventory_count(0)
 	_hud.fade_controls()
@@ -87,6 +93,8 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	if _debug_panel != null and _debug_panel.is_open():
+		_refresh_debug_panel()
 	if _camera_rig.get_camera() == null:
 		return
 	_headlight.global_transform.basis = _camera_rig.get_camera().global_transform.basis
@@ -114,6 +122,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		and (_state == State.PLAYING or _state == State.INVENTORY)
 	):
 		_toggle_inventory()
+		get_viewport().set_input_as_handled()
+		return
+	var panel_open: bool = _debug_panel != null and _debug_panel.is_open()
+	if event.is_action_pressed("debug_panel") and (_state == State.PLAYING or panel_open):
+		_toggle_debug_panel()
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("pause") and _state == State.PLAYING:
@@ -167,6 +180,57 @@ func _setup_environment() -> void:
 	_headlight.light_color = Color("e6c9ae")
 	_headlight.light_energy = 0.62
 	_headlight.shadow_enabled = false
+
+
+func _toggle_debug_panel() -> void:
+	if _debug_panel == null:
+		return
+	var open: bool = not _debug_panel.is_open()
+	_debug_panel.set_open(open)
+	_camera_rig.set_process_unhandled_input(not open)
+	if open:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		_refresh_debug_panel()
+	elif _state == State.PLAYING:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _refresh_debug_panel() -> void:
+	if _debug_panel == null:
+		return
+	(
+		_debug_panel
+		. refresh(
+			{
+				&"radius": "%.1f м" % _planet.radius,
+				&"time": "%.2f×" % Engine.time_scale,
+				&"cold": "%d%%" % roundi(_player.get_cold() * 100.0),
+				&"stones": "%d" % _model.size(),
+			}
+		)
+	)
+
+
+func _on_debug_action(action: StringName, value: float) -> void:
+	match action:
+		&"planet_add":
+			_planet.apply_radius(_planet.radius + value)
+		&"planet_set":
+			_planet.apply_radius(value)
+		&"time_scale":
+			Engine.time_scale = maxf(value, 0.05)
+		&"cold_set":
+			_player.debug_set_cold(value)
+		&"jump":
+			_player.debug_jump()
+		&"debris":
+			_debris.force_spawn()
+			_debris.debug_launch_now()
+		&"stone_rock":
+			debug_grant_stone(StoneItem.Kind.ROCK, value)
+		&"stone_ice":
+			debug_grant_stone(StoneItem.Kind.ICE, value)
+	_refresh_debug_panel()
 
 
 func _toggle_inventory() -> void:
