@@ -41,6 +41,11 @@ const STEP_MIN: float = 0.11
 const STEP_MAX: float = 0.24
 const STEP_SPEED_GAIN: float = 0.1
 const AIR_FOOT_LIFT: float = 0.07
+const AIR_TUCK_LIFT: float = 0.3
+const AIR_TUCK_FORWARD: float = 0.14
+const AIR_PITCH: float = 0.3
+const AIR_TUCK_RATE: float = 10.0
+const LEAN_RATE: float = 5.0
 const CATCH_ARM: float = 1.1
 const CATCH_TIME: float = 0.55
 const LEAN_TIME: float = 0.25
@@ -70,6 +75,10 @@ var _speed_ratio: float = 0.0
 var _grounded: bool = true
 var _airborne: bool = false
 var _air_time: float = 0.0
+var _air_tuck: float = 0.0
+var _pull: Vector3 = Vector3.ZERO
+var _pull_weight: float = 0.0
+var _hang: float = 0.0
 var _running: bool = false
 var _sitting: bool = false
 var _bob_phase: float = 0.0
@@ -160,6 +169,17 @@ func set_smearing(active: bool) -> void:
 
 func is_smearing() -> bool:
 	return _smearing
+
+
+## Where the rope is dragging him and how hard, so the body can hang from it
+## instead of standing to attention in mid air.
+func set_pull(direction: Vector3, weight: float) -> void:
+	_pull = direction
+	_pull_weight = clampf(weight, 0.0, 1.0)
+
+
+func get_lean() -> float:
+	return _hang
 
 
 func play_jump() -> void:
@@ -289,11 +309,13 @@ func _update_air(delta: float) -> void:
 			_airborne = false
 			_land()
 		_air_time = 0.0
-		return
-	_air_time += delta
-	if not _airborne and _air_time >= AIR_GRACE:
-		_airborne = true
-		_stretch()
+	else:
+		_air_time += delta
+		if not _airborne and _air_time >= AIR_GRACE:
+			_airborne = true
+			_stretch()
+	_air_tuck = move_toward(_air_tuck, 1.0 if _airborne else 0.0, delta * AIR_TUCK_RATE)
+	_hang = lerpf(_hang, _pull_weight if _airborne else 0.0, 1.0 - exp(-LEAN_RATE * delta))
 
 
 func _update_body(delta: float) -> void:
@@ -335,7 +357,11 @@ func _update_legs(delta: float) -> void:
 		var phase: float = _gait_phase + (PI if side == 1 else 0.0)
 		var target: Vector3
 		if _airborne:
-			target = _ideal_foot(side) + up * AIR_FOOT_LIFT
+			target = (
+				_ideal_foot(side)
+				+ up * (AIR_FOOT_LIFT + AIR_TUCK_LIFT * _air_tuck)
+				+ forward * (AIR_TUCK_FORWARD * _air_tuck)
+			)
 		else:
 			target = _ideal_foot(side) + _foot_offset(phase, stride, forward, up)
 		_foot_targets[side] = target
@@ -395,10 +421,27 @@ func _update_pose(delta: float) -> void:
 		wanted_bank = clampf(turn * BANK_PER_TURN, -MAX_BANK, MAX_BANK)
 	_bank = lerpf(_bank, wanted_bank, 1.0 - exp(-9.0 * delta))
 	var wanted_pitch: float = 0.0
-	if not _sitting and not _smearing and not _airborne:
-		wanted_pitch = RUN_PITCH * clampf(_activity, 0.0, 1.0)
+	if not _sitting and not _smearing:
+		if _airborne:
+			wanted_pitch = AIR_PITCH * _air_tuck
+		else:
+			wanted_pitch = RUN_PITCH * clampf(_activity, 0.0, 1.0)
 	_pitch = lerpf(_pitch, wanted_pitch, 1.0 - exp(-PITCH_RESPONSE * delta))
-	_rig.rotation = Vector3(_pitch, PI + _spin, _bank)
+	var pose: Quaternion = (
+		Basis.from_euler(Vector3(_pitch, PI + _spin, _bank)).get_rotation_quaternion()
+	)
+	_rig.quaternion = _hang_quaternion() * pose
+
+
+## Rotates the body so its up follows the rope: a boy hanging from a winch
+## should hang, and near the ground the lean fades back to standing straight.
+func _hang_quaternion() -> Quaternion:
+	if _rig == null or _hang <= 0.001 or _pull.length_squared() < 0.0001:
+		return Quaternion.IDENTITY
+	var local: Vector3 = (global_transform.basis.inverse() * -_pull).normalized()
+	if local.dot(Vector3.UP) < -0.999:
+		local = Vector3(-1.0, 0.0, 0.0)
+	return Quaternion.IDENTITY.slerp(Quaternion(Vector3.UP, local), clampf(_hang, 0.0, 1.0))
 
 
 func _solve_leg(side: int, foot: Vector3) -> void:

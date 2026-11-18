@@ -304,6 +304,11 @@ func _physics_process(delta: float) -> void:
 
 	_update_cold(delta)
 	_model.set_motion(get_speed_ratio(), grounded_now, _running, velocity.length(), velocity)
+	var hanging: bool = rope != null and rope.is_planted() and not grounded_now and _rope_crawl
+	if hanging:
+		_model.set_pull(rope.peek_reel_direction(), 1.0)
+	else:
+		_model.set_pull(Vector3.ZERO, 0.0)
 	_update_winch()
 
 
