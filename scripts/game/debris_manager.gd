@@ -234,8 +234,9 @@ func _try_catch() -> bool:
 	var net_point: Vector3 = player.get_net_catch_point()
 	if _debris.global_position.distance_to(net_point) > NET_CATCH_RADIUS:
 		return false
-	# The catch is automatic: the net only has to reach the junk.
-	player.swing_net()
+	# The catch is automatic: the net only has to reach the junk. The swing is
+	# visual only — a flyby must stay silent.
+	player.swing_net(false)
 	_catch_with_net()
 	return true
 
