@@ -237,6 +237,12 @@ func is_net_active() -> bool:
 	return _net_active
 
 
+func get_hand_position() -> Vector3:
+	if _skeleton == null or _claw_bone < 0:
+		return global_position + global_transform.basis.y * NET_CATCH_HEIGHT
+	return (_skeleton.global_transform * _skeleton.get_bone_global_pose(_claw_bone)).origin
+
+
 func get_net_catch_point() -> Vector3:
 	if _catch_point != Vector3.ZERO:
 		return _catch_point

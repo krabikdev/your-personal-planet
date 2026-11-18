@@ -1,4 +1,4 @@
-extends GutTest
+extends GutTest  # gdlint:ignore=max-public-methods
 
 const GAME_PATH: String = "res://scenes/game.tscn"
 
@@ -269,3 +269,256 @@ func test_a_planted_stake_prevents_freezing() -> void:
 
 	assert_lt(player.get_cold(), 1.0, "a planted stake should cap the cold below death")
 	assert_false(player.dead, "the boy must not freeze while the stake holds him")
+
+
+func test_wasd_steers_the_boy_while_the_winch_pulls_him_in() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 6.0)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(2)
+
+	Input.action_press("jump")
+	await wait_physics_frames(24)
+	var sideways_without: Vector3 = player.velocity - up * player.velocity.dot(up)
+
+	var altitude_before: float = player.get_altitude()
+	Input.action_press("move_right")
+	await wait_physics_frames(24)
+	var sideways_with: Vector3 = player.velocity - up * player.velocity.dot(up)
+	var altitude_after: float = player.get_altitude()
+	var facing: Vector3 = player._facing
+	Input.action_release("move_right")
+	Input.action_release("jump")
+
+	assert_gt(
+		sideways_with.length(),
+		sideways_without.length() + 2.0,
+		"WASD should slide the boy sideways while the winch holds him"
+	)
+	assert_lt(
+		altitude_after,
+		altitude_before - 0.15,
+		"the winch should keep winding him towards the stake while he steers"
+	)
+	assert_gt(
+		facing.dot(sideways_with.normalized()),
+		0.7,
+		"the duke should turn into the direction he glides"
+	)
+
+
+func test_space_alone_does_not_steer_the_boy() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 6.0)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(2)
+
+	Input.action_press("jump")
+	await wait_physics_frames(24)
+	var sideways: Vector3 = player.velocity - up * player.velocity.dot(up)
+	Input.action_release("jump")
+
+	assert_lt(sideways.length(), 1.0, "with only Space held the boy should not steer anywhere")
+
+
+func test_the_rope_lies_on_the_ground_when_the_boy_walks_around_the_planet() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var centre: Vector3 = planet.get_center()
+	var up: Vector3 = player.get_up()
+	var axis: Vector3 = up.cross(Vector3.UP)
+	if axis.length_squared() < 0.01:
+		axis = up.cross(Vector3.RIGHT)
+	var direction: Vector3 = up.rotated(axis.normalized(), 1.0)
+	player.global_position = centre + direction * (planet.radius + 0.3)
+	player.velocity = Vector3.ZERO
+	await wait_seconds(0.8)
+
+	var points: PackedVector3Array = player.rope.get_rope_points()
+	assert_gt(points.size(), 6, "a rope laid over the curve needs several segments")
+
+	var lowest: float = INF
+	for point: Vector3 in points:
+		var radius: float = point.distance_to(centre)
+		lowest = minf(lowest, radius)
+		assert_gte(radius, planet.radius - 0.002, "the rope must never sink into the planet")
+	assert_lt(
+		lowest,
+		planet.radius + RopeAnchor.ROPE_CLEARANCE + 0.04,
+		"the rope should rest on the ground instead of cutting across the world"
+	)
+
+
+func test_the_rope_pulls_straight_when_the_boy_hangs_in_the_air() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 6.0)
+	player.velocity = Vector3.ZERO
+	await wait_seconds(1.2)
+
+	var points: PackedVector3Array = player.rope.get_rope_points()
+	assert_gte(points.size(), 4, "there should be a rope between the stake and the boy")
+	var start: Vector3 = points[0]
+	var finish: Vector3 = points[points.size() - 1]
+	for point: Vector3 in points:
+		var closest: Vector3 = Geometry3D.get_closest_point_to_segment(point, start, finish)
+		assert_lt(point.distance_to(closest), 0.15, "a taut rope in the air should hang in a line")
+
+
+func test_the_rope_never_jumps_to_the_far_side_of_the_planet() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var centre: Vector3 = planet.get_center()
+	var stake_dir: Vector3 = (player.rope.get_anchor_position() - centre).normalized()
+	var start_dir: Vector3 = player.get_up()
+	var axis: Vector3 = stake_dir.cross(start_dir).normalized()
+	if axis.length_squared() < 0.01:
+		axis = stake_dir.cross(Vector3.RIGHT).normalized()
+
+	var walked: float = 2.4
+	for step: int in 24:
+		var angle: float = walked * float(step + 1) / 24.0
+		var direction: Vector3 = stake_dir.rotated(axis, angle)
+		player.global_position = centre + direction * (planet.radius + 0.03)
+		player.velocity = Vector3.ZERO
+		await wait_physics_frames(2)
+	await wait_seconds(0.5)
+
+	var highest: float = -INF
+	var lowest: float = INF
+	for point: Vector3 in player.rope.get_rope_points():
+		var radius: float = point.distance_to(centre)
+		assert_gte(radius, planet.radius - 0.002, "the rope must stay outside the planet")
+		var turned: float = stake_dir.signed_angle_to((point - centre).normalized(), axis)
+		highest = maxf(highest, turned)
+		lowest = minf(lowest, turned)
+
+	assert_gt(lowest, -0.15, "no part of the rope should snap around the far side")
+	assert_lt(highest, walked + 0.3, "the rope should never wrap the wrong way round")
+
+
+func test_the_stake_can_only_be_pulled_out_on_the_ground() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 3.0)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(1)
+	player.remove_stake()
+	assert_true(player.rope.is_planted(), "the stake must stay tied while the boy is in the air")
+
+	player.snap_to_surface()
+	await wait_physics_frames(2)
+	player.remove_stake()
+	assert_false(player.rope.is_planted(), "a boy standing on the ground can pull the stake out")
+
+
+func test_a_resting_rope_stays_where_it_was_laid() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var centre: Vector3 = planet.get_center()
+	var up: Vector3 = player.get_up()
+	var axis: Vector3 = up.cross(Vector3.UP)
+	if axis.length_squared() < 0.01:
+		axis = up.cross(Vector3.RIGHT)
+	player.global_position = centre + up.rotated(axis.normalized(), 0.5) * (planet.radius + 0.03)
+	player.velocity = Vector3.ZERO
+	await wait_seconds(1.0)
+
+	var before: PackedVector3Array = player.rope.get_rope_points().duplicate()
+	await wait_seconds(0.6)
+	var after: PackedVector3Array = player.rope.get_rope_points()
+
+	assert_eq(before.size(), after.size(), "the rope should keep its shape")
+	var drift: float = 0.0
+	for index: int in before.size():
+		drift = maxf(drift, before[index].distance_to(after[index]))
+	assert_lt(drift, 0.05, "a rope resting on the ground should not creep or slide")
+
+
+func test_hitting_the_rope_limit_is_a_soft_stop() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	var rope: RopeAnchor = player.rope
+	var limit: float = rope.get_max_length()
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + limit + 0.5)
+	player.velocity = up * 14.0
+
+	player._apply_rope_limit()
+
+	var recoil: float = player.velocity.dot(up)
+	assert_lt(recoil, 0.0, "the rope should still stop the boy")
+	assert_gt(recoil, -2.0, "a full speed jump should not be flung back down the rope")
+
+
+func test_the_rope_is_tied_to_the_dukes_hand() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	player.plant_stake()
+	await wait_physics_frames(6)
+
+	var points: PackedVector3Array = player.rope.get_rope_points()
+	var hand: Vector3 = player.get_hand_position()
+	assert_gt(points.size(), 2, "there should be a rope to look at")
+	assert_lt(
+		points[points.size() - 1].distance_to(hand),
+		0.12,
+		"the loose end of the rope should sit in the duke's hand"
+	)
+	assert_gt(
+		hand.y - player.global_position.y, 0.2, "the hand should be up the body, not at the boots"
+	)

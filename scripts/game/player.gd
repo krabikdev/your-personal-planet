@@ -9,10 +9,12 @@ signal cold_changed(amount: float)
 signal jumped
 signal landed(strength: float)
 
-const ROPE_BOUNCE: float = 0.55
+const ROPE_BOUNCE: float = 0.1
+const ROPE_RECOIL_MAX: float = 1.2
 const ROPE_CRAWL_SPEED: float = 4.05
 const ROPE_REEL_ACCEL: float = 9.0
 const ROPE_MAX_COLD: float = 0.9
+const ROPE_STEER_PULL: float = 0.45
 
 @export var walk_speed: float = 3.3
 @export var run_multiplier: float = 1.8
@@ -108,8 +110,12 @@ func plant_stake() -> void:
 	rope.plant(global_position + spot.normalized() * 0.95)
 
 
+func can_remove_stake() -> bool:
+	return rope != null and rope.is_planted() and get_altitude() <= 0.6
+
+
 func remove_stake() -> void:
-	if dead or locked or rope == null or not rope.is_planted():
+	if dead or locked or not can_remove_stake():
 		return
 	_rope_crawl = false
 	_rope_brake_latch = false
@@ -217,6 +223,10 @@ func swing_net(with_sound: bool = true) -> void:
 
 func is_net_active() -> bool:
 	return _model.is_net_active()
+
+
+func get_hand_position() -> Vector3:
+	return _model.get_hand_position()
 
 
 func get_net_catch_point() -> Vector3:
@@ -329,10 +339,33 @@ func _handle_rope_air(delta: float) -> void:
 	var to_stake: Vector3 = rope.get_anchor_position() - global_position
 	if to_stake.length_squared() < 0.0001:
 		return
-	# No snap and no bounce: the winch eats the outward speed bit by bit and
-	# then keeps winding the boy home at a steady pace.
-	var desired: Vector3 = to_stake.normalized() * ROPE_CRAWL_SPEED
-	velocity = velocity.move_toward(desired, ROPE_REEL_ACCEL * delta)
+	var steer: Vector3 = _rope_steer(delta)
+	if steer.length_squared() < 0.0001:
+		_running = false
+		# Space alone: no snap and no bounce, the winch eats the outward speed
+		# bit by bit and then keeps winding the boy home at a steady pace.
+		var desired: Vector3 = to_stake.normalized() * ROPE_CRAWL_SPEED
+		velocity = velocity.move_toward(desired, ROPE_REEL_ACCEL * delta)
+		return
+	# Space plus WASD: the winch keeps a weaker grip and the stick does the
+	# steering, so the boy can swing around the stake on the way home.
+	var pull: Vector3 = to_stake.normalized() * ROPE_CRAWL_SPEED * ROPE_STEER_PULL
+	velocity = velocity.move_toward(pull + steer, rope_air_acceleration * delta)
+
+
+func _rope_steer(delta: float) -> Vector3:
+	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if input.length_squared() < 0.01:
+		return Vector3.ZERO
+	var up: Vector3 = get_up()
+	var forward: Vector3 = _facing
+	if camera_rig != null and camera_rig.has_method("get_tangent_forward"):
+		forward = camera_rig.get_tangent_forward(up)
+	var right: Vector3 = forward.cross(up).normalized()
+	var wanted: Vector3 = (right * input.x - forward * input.y).normalized()
+	_turn_toward(wanted, up, delta)
+	_running = Input.is_action_pressed("run") or Input.is_key_pressed(KEY_SHIFT)
+	return wanted * rope_air_speed * (run_multiplier if _running else 1.0)
 
 
 func _apply_rope_limit() -> void:
@@ -348,7 +381,8 @@ func _apply_rope_limit() -> void:
 	global_position = anchor + direction * limit
 	var outward_speed: float = velocity.dot(direction)
 	if outward_speed > 0.0:
-		velocity -= direction * outward_speed * (1.0 + ROPE_BOUNCE)
+		var recoil: float = minf(outward_speed * ROPE_BOUNCE, ROPE_RECOIL_MAX)
+		velocity -= direction * (outward_speed + recoil)
 		if outward_speed > 0.8:
 			rope.notify_snap(outward_speed)
 
