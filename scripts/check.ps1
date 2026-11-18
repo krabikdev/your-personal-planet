@@ -225,10 +225,18 @@ if ($runTests) {
     if ($gutClean -match 'Passing Tests\s+(\d+)') { $passing = [int]$Matches[1] }
     if ($gutClean -match 'Failing Tests\s+(\d+)') { $failing = [int]$Matches[1] }
 
-    if ($gutExit -ne 0 -or $failing -gt 0 -or $tests -eq 0) {
+    # GUT quietly skips a test script it cannot parse, which would shrink the
+    # suite without failing it.
+    $unloaded = @($gutClean -split "`r?`n" | Where-Object { $_ -match 'Ignoring script|Failed to load script' })
+
+    if ($gutExit -ne 0 -or $failing -gt 0 -or $tests -eq 0 -or $unloaded.Count -gt 0) {
         Write-Host $gutOutput
         Write-Host "GUT: tests=$tests passing=$passing failing=$failing exit=$gutExit" -ForegroundColor Red
         if ($tests -eq 0) { Write-Host "No tests were collected." -ForegroundColor Red }
+        if ($unloaded.Count -gt 0) {
+            Write-Host "A test script could not be loaded, so the suite is smaller than it claims:" -ForegroundColor Red
+            $unloaded | ForEach-Object { Write-Host "  $_" }
+        }
         Add-Result 'gut' $false "tests=$tests failing=$failing exit=$gutExit" (Format-Duration $timer.ElapsedMilliseconds)
     } else {
         Write-Host "GUT: tests=$tests passing=$passing failing=$failing" -ForegroundColor Green
