@@ -40,8 +40,12 @@ func test_every_step_is_pitched_between_five_and_ten_percent() -> void:
 	assert_gt(highest, 1.04, "and some should land high")
 
 
-func test_a_step_is_louder_than_the_old_whisper() -> void:
+func test_a_step_plays_at_the_footstep_level() -> void:
 	var player: Boy = await _make_player()
 
 	player._on_footstepped(0)
-	assert_gt(player._audio.volume_db, -9.0, "the old footsteps sat at -9 dB and were inaudible")
+	var expected: float = Boy.FOOTSTEP_DB + linear_to_db(AudioDirector.sfx_volume)
+	assert_almost_eq(
+		player._audio.volume_db, expected, 0.01, "a step should play at the footstep level"
+	)
+	assert_lt(Boy.FOOTSTEP_DB, -6.0, "the steps were asked to come down and stay down")

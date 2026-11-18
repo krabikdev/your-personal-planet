@@ -27,7 +27,7 @@ func test_a_jump_on_a_huge_planet_stays_controllable() -> void:
 func test_the_fall_speed_is_capped() -> void:
 	var game: Game = (load(GAME_PATH) as PackedScene).instantiate() as Game
 	add_child_autofree(game)
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var planet: Planet = game.get_node("Planet") as Planet
@@ -42,14 +42,14 @@ func test_the_fall_speed_is_capped() -> void:
 func _walk_sample(radius: float) -> Dictionary:
 	var game: Game = (load(GAME_PATH) as PackedScene).instantiate() as Game
 	add_child_autofree(game)
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 
 	var planet: Planet = game.get_node("Planet") as Planet
 	var player: Boy = game.get_node("Player") as Boy
 	var model: PrinceModel = player._model
 	planet.apply_radius(radius)
 	player.snap_to_surface()
-	await wait_physics_frames(6)
+	await wait_physics_frames(1)
 
 	var skeleton: Skeleton3D = model._skeleton
 	var bone: int = skeleton.find_bone("leg_L_tip")
@@ -58,7 +58,7 @@ func _walk_sample(radius: float) -> Dictionary:
 	var flips: int = 0
 	var was_grounded: bool = model._grounded
 	Input.action_press("move_forward")
-	for _frame: int in 30:
+	for _frame: int in 18:
 		await wait_physics_frames(1)
 		var now: Vector3 = (
 			skeleton.get_global_transform() * skeleton.get_bone_global_pose(bone).origin

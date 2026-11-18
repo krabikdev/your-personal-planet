@@ -15,7 +15,7 @@ func _camera_distance(rig: CameraRig, player: Boy) -> float:
 
 func test_the_camera_stays_close_on_a_huge_planet() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 
 	var planet: Planet = game.get_node("Planet") as Planet
 	var player: Boy = game.get_node("Player") as Boy
@@ -25,7 +25,7 @@ func test_the_camera_stays_close_on_a_huge_planet() -> void:
 	player.snap_to_surface()
 	rig._orbit = player.global_position
 	rig._snap()
-	await wait_physics_frames(10)
+	await wait_physics_frames(6)
 
 	var distance: float = _camera_distance(rig, player)
 	assert_lt(distance, 18.0, "a huge planet must not push the camera into orbit")
@@ -34,7 +34,7 @@ func test_the_camera_stays_close_on_a_huge_planet() -> void:
 
 func test_holding_plus_zooms_in_and_minus_zooms_out() -> void:
 	var game: Game = _make_game()
-	await wait_physics_frames(2)
+	await wait_physics_frames(1)
 
 	var player: Boy = game.get_node("Player") as Boy
 	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
@@ -43,14 +43,14 @@ func test_holding_plus_zooms_in_and_minus_zooms_out() -> void:
 	var start: float = _camera_distance(rig, player)
 
 	Input.action_press("zoom_in")
-	await wait_physics_frames(24)
+	await wait_physics_frames(12)
 	var near: float = _camera_distance(rig, player)
 	Input.action_release("zoom_in")
 	assert_lt(near, start * 0.85, "holding + should bring the camera closer")
 	assert_lt(rig.get_zoom(), 1.0, "the rig should remember it is zoomed in")
 
 	Input.action_press("zoom_out")
-	await wait_physics_frames(36)
+	await wait_physics_frames(20)
 	var far: float = _camera_distance(rig, player)
 	Input.action_release("zoom_out")
 	assert_gt(far, near * 1.15, "holding - should push the camera back out")

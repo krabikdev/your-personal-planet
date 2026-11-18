@@ -181,6 +181,7 @@ if ($runTests) {
 
     $gutArgs = @(
         '--headless',
+        '--fixed-fps', '60',
         '--path', $projectRoot,
         '-s', 'addons/gut/gut_cmdln.gd'
     )
