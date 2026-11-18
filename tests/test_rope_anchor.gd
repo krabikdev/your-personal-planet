@@ -525,3 +525,82 @@ func test_the_rope_is_tied_to_the_dukes_hand() -> void:
 	assert_gt(
 		hand.y - player.global_position.y, 0.2, "the hand should be up the body, not at the boots"
 	)
+
+
+func test_the_winch_follows_the_rope_instead_of_the_straight_line() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	planet.apply_radius(40.0)
+	player.snap_to_surface()
+	var centre: Vector3 = planet.get_center()
+	var stake_dir: Vector3 = (player.rope.get_anchor_position() - centre).normalized()
+	var axis: Vector3 = stake_dir.cross(player.get_up())
+	if axis.length_squared() < 0.01:
+		axis = stake_dir.cross(Vector3.RIGHT)
+	player.global_position = (
+		centre + stake_dir.rotated(axis.normalized(), 1.2) * (planet.radius + 0.05)
+	)
+	player.velocity = Vector3.ZERO
+	player.rope.debug_advance(1.5)
+
+	var spot: Vector3 = player.global_position
+	player.global_position = spot + player.get_up() * 8.0
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(1)
+	Input.action_press("jump")
+	await wait_physics_frames(8)
+	var up: Vector3 = player.get_up()
+	var falling: float = player.velocity.dot(up)
+	var speed: float = player.velocity.length()
+	Input.action_release("jump")
+
+	assert_lt(
+		falling,
+		-speed * 0.5,
+		"the winch should wind the boy down the hanging rope, not along a straight line to the stake"
+	)
+
+
+func test_a_long_rope_is_drawn_in_short_pieces() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	planet.apply_radius(40.0)
+	player.snap_to_surface()
+	var centre: Vector3 = planet.get_center()
+	var stake_dir: Vector3 = (player.rope.get_anchor_position() - centre).normalized()
+	var axis: Vector3 = stake_dir.cross(player.get_up())
+	if axis.length_squared() < 0.01:
+		axis = stake_dir.cross(Vector3.RIGHT)
+	player.global_position = (
+		centre + stake_dir.rotated(axis.normalized(), 1.2) * (planet.radius + 0.05)
+	)
+	player.velocity = Vector3.ZERO
+	player.rope.debug_advance(1.5)
+
+	var render: PackedVector3Array = player.rope.get_rope_render_points()
+	var simulated: PackedVector3Array = player.rope.get_rope_points()
+	assert_gt(
+		render.size(),
+		simulated.size(),
+		"a long rope should be drawn smoother than the chain that holds it"
+	)
+	var longest: float = 0.0
+	for index: int in render.size() - 1:
+		longest = maxf(longest, render[index].distance_to(render[index + 1]))
+	assert_lt(
+		longest,
+		RopeAnchor.ROPE_DRAW_STEP * 1.5,
+		"no drawn piece should be long enough to read as a stick",
+	)

@@ -355,20 +355,20 @@ func _rope_air_active() -> bool:
 func _handle_rope_air(delta: float) -> void:
 	if rope == null:
 		return
-	var to_stake: Vector3 = rope.get_anchor_position() - global_position
-	if to_stake.length_squared() < 0.0001:
+	var home: Vector3 = rope.get_reel_direction()
+	if home.length_squared() < 0.0001:
 		return
 	var steer: Vector3 = _rope_steer(delta)
 	if steer.length_squared() < 0.0001:
 		_running = false
 		# Space alone: no snap and no bounce, the winch eats the outward speed
-		# bit by bit and then keeps winding the boy home at a steady pace.
-		var desired: Vector3 = to_stake.normalized() * ROPE_CRAWL_SPEED
+		# bit by bit and then keeps winding the boy along the cord.
+		var desired: Vector3 = home * ROPE_CRAWL_SPEED
 		velocity = velocity.move_toward(desired, ROPE_REEL_ACCEL * delta)
 		return
 	# Space plus WASD: the winch keeps a weaker grip and the stick does the
 	# steering, so the boy can swing around the stake on the way home.
-	var pull: Vector3 = to_stake.normalized() * ROPE_CRAWL_SPEED * ROPE_STEER_PULL
+	var pull: Vector3 = home * ROPE_CRAWL_SPEED * ROPE_STEER_PULL
 	velocity = velocity.move_toward(pull + steer, rope_air_acceleration * delta)
 
 
