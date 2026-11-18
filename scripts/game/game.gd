@@ -204,7 +204,6 @@ func _refresh_debug_panel() -> void:
 			{
 				&"radius": "%.1f м" % _planet.radius,
 				&"time": "%.2f×" % Engine.time_scale,
-				&"cold": "%d%%" % roundi(_player.get_cold() * 100.0),
 				&"stones": "%d" % _model.size(),
 			}
 		)
@@ -217,12 +216,10 @@ func _on_debug_action(action: StringName, value: float) -> void:
 			_planet.apply_radius(_planet.radius + value)
 		&"planet_set":
 			_planet.apply_radius(value)
+			_player.snap_to_surface()
+			_player.debug_set_cold(0.0)
 		&"time_scale":
 			Engine.time_scale = maxf(value, 0.05)
-		&"cold_set":
-			_player.debug_set_cold(value)
-		&"jump":
-			_player.debug_jump()
 		&"debris":
 			_debris.force_spawn()
 			_debris.debug_launch_now()
