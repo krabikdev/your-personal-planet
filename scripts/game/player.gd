@@ -15,6 +15,9 @@ const ROPE_CRAWL_SPEED: float = 4.05
 const ROPE_REEL_ACCEL: float = 9.0
 const ROPE_MAX_COLD: float = 0.9
 const MAX_FALL_SPEED: float = 26.0
+const FOOTSTEP_DB: float = -6.0
+const FOOTSTEP_PITCH_MIN: float = 0.05
+const FOOTSTEP_PITCH_MAX: float = 0.10
 const GROUND_STICK: float = 0.12
 const ROPE_STEER_PULL: float = 0.45
 
@@ -507,7 +510,14 @@ func _keep_above_surface(up: Vector3) -> void:
 func _on_footstepped(side: int) -> void:
 	if dead or locked:
 		return
-	_play("footstep_2" if side == 1 else "footstep_1", -9.0, 0.08)
+	var key: String = "footstep_2" if side == 1 else "footstep_1"
+	if not _streams.has(key):
+		return
+	_audio.stream = _streams[key]
+	_audio.volume_db = FOOTSTEP_DB + linear_to_db(clampf(AudioDirector.sfx_volume, 0.001, 1.0))
+	var wobble: float = randf_range(FOOTSTEP_PITCH_MIN, FOOTSTEP_PITCH_MAX)
+	_audio.pitch_scale = 1.0 + wobble * (1.0 if randf() < 0.5 else -1.0)
+	_audio.play()
 
 
 func _update_cold(delta: float) -> void:
