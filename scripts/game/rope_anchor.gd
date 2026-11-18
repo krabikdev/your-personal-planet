@@ -77,6 +77,14 @@ func get_rope_render_points() -> PackedVector3Array:
 
 ## The way home is along the cord, not through the air to the stake: the first
 ## few metres of rope behind the boy's hand are what a winch would wind in.
+func peek_reel_direction() -> Vector3:
+	if _reel.length_squared() > 0.5:
+		return _reel
+	if player == null:
+		return Vector3.ZERO
+	return (_anchor - player.global_position).normalized()
+
+
 func get_reel_direction() -> Vector3:
 	var count: int = _points.size()
 	if count < 3:
