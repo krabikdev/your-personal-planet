@@ -133,3 +133,35 @@ func test_the_winch_lets_go_at_the_stake_and_lands() -> void:
 
 	assert_lt(altitude, 0.4, "the winch should put him down at the stake, not leave him hanging")
 	assert_true(landed, "holding Space at the stake should still let him land")
+
+
+func test_letting_go_of_space_does_not_snap_the_body() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+
+	var planet: Planet = game.get_node("Planet") as Planet
+	var player: Boy = game.get_node("Player") as Boy
+	var model: PrinceModel = player._model
+	planet.apply_radius(20.0)
+	player.snap_to_surface()
+	await wait_physics_frames(1)
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var up: Vector3 = player.get_up()
+	var centre: Vector3 = planet.get_center()
+	player.global_position = centre + up * (planet.radius + 6.0)
+	player.velocity = Vector3.ZERO
+	Input.action_press("jump")
+	await wait_physics_frames(30)
+	Input.action_release("jump")
+
+	var worst: float = 0.0
+	var last: Quaternion = model._rig.quaternion
+	for _frame: int in 12:
+		await wait_physics_frames(1)
+		var now: Quaternion = model._rig.quaternion
+		worst = maxf(worst, rad_to_deg(last.angle_to(now)))
+		last = now
+
+	assert_lt(worst, 5.0, "letting go of the winch should settle the body, not snap it")

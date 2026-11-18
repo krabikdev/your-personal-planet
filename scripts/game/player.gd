@@ -19,6 +19,9 @@ const FOOTSTEP_DB: float = -9.0
 const FOOTSTEP_PITCH_MIN: float = 0.05
 const FOOTSTEP_PITCH_MAX: float = 0.10
 const GROUND_STICK: float = 0.12
+## Jumping stays possible this close above the ground even when the feet are
+## not planted: stepping off a pebble should not eat the jump.
+const JUMP_GROUND_ALLOWANCE: float = 0.18
 const ROPE_STEER_PULL: float = 0.45
 const ROPE_ARRIVE: float = 1.2
 const ROPE_HANG_FADE: float = 2.0
@@ -319,12 +322,7 @@ func _physics_process(delta: float) -> void:
 
 func _update_winch() -> void:
 	var reeling: bool = (
-		_rope_crawl
-		and not locked
-		and not dead
-		and not is_on_floor()
-		and rope != null
-		and rope.is_planted()
+		_rope_crawl and not locked and not dead and rope != null and rope.is_planted()
 	)
 	_set_winch_playing(reeling)
 
@@ -345,16 +343,22 @@ func _set_winch_playing(value: bool) -> void:
 func _rope_air_active() -> bool:
 	if rope == null or not rope.is_planted():
 		return false
-	if not Input.is_action_pressed("jump") or is_on_floor():
+	if not Input.is_action_pressed("jump"):
 		_rope_crawl = false
 		_rope_brake_latch = false
 		_rope_done = false
 		return false
-	if _rope_done:
+	if _rope_done or (_rope_brake_latch and not _rope_crawl):
+		if is_on_floor():
+			_rope_brake_latch = false
+			_rope_done = false
 		return false
-	if _rope_crawl:
-		return true
-	if _rope_brake_latch:
+	if is_on_floor() and not _rope_crawl:
+		# Standing on the ground with a fresh press is a jump, not a winch.
+		# A crawl that is already going survives a graze of the floor instead
+		# of resetting and braking the glide on every bump.
+		_rope_brake_latch = false
+		_rope_done = false
 		return false
 	# A fresh press in the air: the winch takes over from the next frame on.
 	_rope_crawl = true
@@ -365,11 +369,9 @@ func _handle_rope_air(delta: float) -> void:
 	if rope == null:
 		return
 	# The winch stops pulling once the boy is back at the stake: from there the
-	# ground takes him, even with the key still held.
-	if (
-		get_altitude() < 0.3
-		or global_position.distance_to(rope.get_anchor_position()) <= ROPE_ARRIVE
-	):
+	# ground takes him, even with the key still held. Low altitude alone is not
+	# an arrival: on a draped rope home can still be metres away along the ground.
+	if global_position.distance_to(rope.get_anchor_position()) <= ROPE_ARRIVE:
 		_rope_done = true
 		_rope_crawl = false
 		_apply_gravity(get_up(), delta)
@@ -442,7 +444,7 @@ func _handle_jump(up: Vector3, grounded: bool) -> void:
 		_jump_buffer = jump_buffer_time
 	else:
 		_jump_buffer = maxf(_jump_buffer - get_physics_process_delta_time(), 0.0)
-	if grounded:
+	if grounded or get_altitude() < JUMP_GROUND_ALLOWANCE:
 		_coyote = coyote_time
 	else:
 		_coyote = maxf(_coyote - get_physics_process_delta_time(), 0.0)

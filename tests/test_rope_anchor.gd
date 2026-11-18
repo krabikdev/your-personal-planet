@@ -601,3 +601,34 @@ func test_the_rope_stays_short_and_taut_next_to_the_stake() -> void:
 		var closest: Vector3 = Geometry3D.get_closest_point_to_segment(point, start, finish)
 		bulge = maxf(bulge, point.distance_to(closest))
 	assert_lt(bulge, 0.3, "next to the stake the rope should stay short, not loop away")
+
+
+func test_the_winch_keeps_pulling_along_the_ground_far_from_the_stake() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(1)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var centre: Vector3 = planet.get_center()
+	var stake_dir: Vector3 = (player.rope.get_anchor_position() - centre).normalized()
+	var axis: Vector3 = stake_dir.cross(player.get_up()).normalized()
+	if axis.length_squared() < 0.01:
+		axis = stake_dir.cross(Vector3.RIGHT).normalized()
+	player.global_position = (
+		centre + stake_dir.rotated(axis.normalized(), 0.6) * (planet.radius + 0.15)
+	)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(1)
+	var start: float = player.global_position.distance_to(player.rope.get_anchor_position())
+	Input.action_press("jump")
+	await wait_physics_frames(90)
+	Input.action_release("jump")
+
+	assert_lt(
+		player.global_position.distance_to(player.rope.get_anchor_position()),
+		start - 2.0,
+		"holding Space low and far from the stake should keep reeling home, not give up",
+	)

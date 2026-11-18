@@ -78,6 +78,7 @@ var _air_time: float = 0.0
 var _air_tuck: float = 0.0
 var _pull: Vector3 = Vector3.ZERO
 var _pull_weight: float = 0.0
+var _pull_target: Vector3 = Vector3.ZERO
 var _hang: float = 0.0
 var _running: bool = false
 var _sitting: bool = false
@@ -172,9 +173,11 @@ func is_smearing() -> bool:
 
 
 ## Where the rope is dragging him and how hard, so the body can hang from it
-## instead of standing to attention in mid air.
+## instead of standing to attention in mid air. The direction eases toward its
+## target so letting go of the winch settles the body instead of snapping it
+## upright; the weight stays instant and the hang still fades at its own rate.
 func set_pull(direction: Vector3, weight: float) -> void:
-	_pull = direction
+	_pull_target = direction
 	_pull_weight = clampf(weight, 0.0, 1.0)
 
 
@@ -304,6 +307,7 @@ func _ideal_foot(side: int) -> Vector3:
 
 
 func _update_air(delta: float) -> void:
+	_pull = _pull.lerp(_pull_target, 1.0 - exp(-LEAN_RATE * delta))
 	if _grounded:
 		if _airborne:
 			_airborne = false
@@ -436,7 +440,7 @@ func _update_pose(delta: float) -> void:
 ## Rotates the body so its up follows the rope: a boy hanging from a winch
 ## should hang, and near the ground the lean fades back to standing straight.
 func _hang_quaternion() -> Quaternion:
-	if _rig == null or _hang <= 0.001 or _pull.length_squared() < 0.0001:
+	if _rig == null or _hang <= 0.001 or _pull.length_squared() < 0.000001:
 		return Quaternion.IDENTITY
 	var local: Vector3 = (global_transform.basis.inverse() * -_pull).normalized()
 	if local.dot(Vector3.UP) < -0.999:

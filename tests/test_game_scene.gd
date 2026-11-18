@@ -607,3 +607,46 @@ func test_the_bones_lie_flat_on_the_dust() -> void:
 	)
 	assert_lt(lowest, 0.01, "at least some bones should touch the ground")
 	assert_gte(resting, 20, "almost every bone should lie flat instead of floating")
+
+
+func test_the_net_swing_needs_solid_ground() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var planet: Planet = game.get_node("Planet") as Planet
+	var player: Boy = game.get_node("Player") as Boy
+	await wait_physics_frames(2)
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 1.5)
+	player.velocity = Vector3.ZERO
+	await wait_physics_frames(1)
+	assert_false(player.is_on_floor(), "setup: the boy should be airborne for this check")
+
+	var event := InputEventAction.new()
+	event.action = &"interact"
+	event.pressed = true
+	game._unhandled_input(event)
+	await wait_process_frames(3)
+
+	assert_false(player._model._net_swinging, "swinging the net mid-air should do nothing")
+
+
+func test_the_net_swing_still_works_on_the_ground() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var player: Boy = game.get_node("Player") as Boy
+	player.snap_to_surface()
+	await wait_physics_frames(7)
+	assert_true(player.is_on_floor(), "setup: the boy should be grounded for this check")
+
+	var event := InputEventAction.new()
+	event.action = &"interact"
+	event.pressed = true
+	game._unhandled_input(event)
+
+	assert_true(player._model._net_swinging, "swinging the net on the ground should still work")
