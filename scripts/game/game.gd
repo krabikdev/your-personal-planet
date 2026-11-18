@@ -13,12 +13,19 @@ const SMEAR_DB: float = -5.5
 ## The can pours one unit of water each second; one unit is one ice of the same
 ## size, so the can is refilled by melting what the net catches.
 const WATER_RATE: float = 1.0
+## A stalk only dares to show after the same patch has been watered without a
+## break for this long.
+const WATER_SPROUT_DELAY: float = 3.0
+## Wandering further than this from the patch starts the count from zero.
+const WATER_STREAK_RADIUS: float = 0.7
 
 var _model: InventoryModel = InventoryModel.new()
 var _state: State = State.PLAYING
 var _stones_used: int = 0
 var _rope: RopeAnchor
 var _garden: Garden
+var _pour_streak: float = 0.0
+var _pour_spot: Vector3 = Vector3.ZERO
 var _debug_panel: DebugPanel
 var _frost_material: ShaderMaterial
 var _was_safe_before_growth: bool = false
@@ -115,6 +122,7 @@ func _process(delta: float) -> void:
 
 ## Holding the left button on the ground pours the can into the patch in front
 ## of the boy's feet. The pour is silent; it is the water the player watches.
+## A new stalk only pushes out after three unbroken seconds on the same patch.
 func _update_watering(delta: float) -> void:
 	var pouring: bool = (
 		_state == State.PLAYING
@@ -126,12 +134,23 @@ func _update_watering(delta: float) -> void:
 	)
 	if not pouring:
 		_player.set_watering(false)
+		_pour_streak = 0.0
 		return
 	_player.set_watering(true)
+	var spot: Vector3 = _player.get_water_target()
+	if _pour_streak > 0.0 and _pour_spot.distance_to(spot) > WATER_STREAK_RADIUS:
+		_pour_streak = 0.0
+	_pour_spot = spot
+	_pour_streak += delta
 	var spent: float = _model.spend_water(WATER_RATE * delta)
-	if spent > 0.0:
-		_garden.pour(_player.get_water_target(), spent)
-		_refresh_water()
+	if spent <= 0.0:
+		return
+	var plant: PumpkinPlant = _garden.find_plant(spot)
+	if plant != null:
+		plant.water(spent)
+	elif _pour_streak >= WATER_SPROUT_DELAY:
+		_garden.pour(spot, spent)
+	_refresh_water()
 
 
 func _can_water() -> bool:

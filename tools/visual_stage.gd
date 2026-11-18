@@ -168,6 +168,54 @@ func _setup() -> void:
 			var approach: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 			approach.force_spawn()
 			await get_tree().create_timer(7.0).timeout
+		"ground_check":
+			var gc_planet: Planet = game.get_node("Planet") as Planet
+			var gc_player: Boy = game.get_node("Player") as Boy
+			var gc_spawner: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+			var gc_garden: Garden = game.get_garden()
+			var gc_monster: DecorProp = gc_spawner.debug_spawn_monster(Vector3.UP, 1)
+			gc_monster.debug_place_near(gc_player.global_position, 1.6)
+			gc_planet.apply_radius(60.0)
+			await get_tree().create_timer(0.6).timeout
+			var gc_up: Vector3 = (gc_player.global_position - gc_planet.get_center()).normalized()
+			var gc_forward: Vector3 = -gc_player.global_transform.basis.z
+			var gc_side: Vector3 = gc_forward.cross(gc_up).normalized()
+			var gc_spot: Vector3 = (
+				gc_planet.get_center() + (gc_up + gc_forward * 0.35).normalized() * gc_planet.radius
+			)
+			gc_garden.pour(gc_spot, 0.2)
+			await get_tree().create_timer(0.4).timeout
+			var gc_camera := Camera3D.new()
+			gc_camera.name = "GroundCheckCamera"
+			game.add_child(gc_camera)
+			gc_camera.fov = 60.0
+			gc_camera.make_current()
+			gc_camera.global_position = gc_player.global_position + gc_side * 4.2 + gc_up * 0.4
+			gc_camera.look_at(gc_player.global_position + gc_up * 0.4 + gc_forward * 0.9, gc_up)
+			await get_tree().create_timer(0.6).timeout
+			print(
+				(
+					"GC alt=%.3f monster=%.3f plant=%.3f radius=%.3f"
+					% [
+						gc_player.get_altitude(),
+						(
+							(gc_monster.global_position - gc_planet.get_center()).length()
+							- gc_planet.radius
+						),
+						(
+							(
+								(
+									(gc_garden.get_plants()[0] as PumpkinPlant).global_position
+									- gc_planet.get_center()
+								)
+								. length()
+							)
+							- gc_planet.radius
+						),
+						gc_planet.radius,
+					]
+				)
+			)
 		"far_side":
 			var far: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
 			far.debug_spawn_all()
@@ -185,6 +233,34 @@ func _setup() -> void:
 		"sky":
 			Input.action_press("sky_view")
 			await get_tree().create_timer(1.0).timeout
+		"growth":
+			var growth_planet: Planet = game.get_node("Planet") as Planet
+			var growth_player: Boy = game.get_node("Player") as Boy
+			var growth_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			var growth_spawner: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+			var growth_monster: DecorProp = growth_spawner.debug_spawn_monster(Vector3.UP, 1)
+			growth_monster.debug_place_near(growth_player.global_position, 2.2)
+			growth_rig.base_lift = 1.0
+			growth_rig.base_distance = 3.2
+			game.debug_grant_stone(StoneItem.Kind.ROCK, 1.5)
+			await get_tree().create_timer(0.2).timeout
+			game.debug_apply_first_stone()
+			for _i: int in 18:
+				await get_tree().create_timer(0.3).timeout
+			print(
+				(
+					"GROWTH alt=%.3f radius=%.3f monster=%.3f surface=%.3f"
+					% [
+						growth_player.get_altitude(),
+						growth_planet.radius,
+						(
+							(growth_monster.global_position - growth_planet.get_center()).length()
+							- growth_planet.radius
+						),
+						growth_planet.get_surface_error(),
+					]
+				)
+			)
 		"closeup":
 			var rig: CameraRig = game.get_node("CameraRig") as CameraRig
 			rig.base_lift = 1.1
