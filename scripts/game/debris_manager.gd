@@ -91,6 +91,13 @@ func force_spawn(size_override: float = 0.0) -> void:
 		_begin_event()
 
 
+func debug_launch_now() -> void:
+	if _phase != Phase.WARNING:
+		return
+	_warning_timer = 0.0
+	_launch_debris()
+
+
 func get_countdown() -> float:
 	return _countdown
 

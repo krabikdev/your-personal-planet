@@ -1,22 +1,61 @@
 #!/usr/bin/env bash
-# Project check pipeline: format, lint, headless load, GUT tests.
-# The Linux/macOS twin of scripts/check.ps1. Run it after every change.
-#
-# Requires: GODOT (or `godot` on PATH), gdformat and gdlint (gdtoolkit).
-#   uv tool install gdtoolkit   # or: pipx install gdtoolkit
+# Project check pipeline: format, lint, project load, headless tests.
 #
 # Usage:
-#   ./scripts/check.sh
+#   ./scripts/check.sh                 # everything: use before shipping
+#   ./scripts/check.sh --quick         # format and lint only, a couple of seconds
+#   ./scripts/check.sh --test rope     # format, lint and the matching test files
+#   ./scripts/check.sh --no-tests      # format, lint and the headless project load
+#   ./scripts/check.sh --no-load       # everything except the headless load
+#
+# In the middle of a change run --quick, or --test with the area you touched.
+# Save the full run for shipping, for anything that touches scenes, project
+# settings or this pipeline.
 
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 project_root=$(pwd)
 
-godot=${GODOT:-godot}
-if ! command -v "$godot" >/dev/null 2>&1 && [ ! -x "$godot" ]; then
-    echo "GODOT is not set or points to a missing binary." >&2
-    echo "Set it with: export GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64" >&2
-    exit 1
+run_load=1
+run_tests=1
+test_filters=()
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --quick)
+            run_load=0
+            run_tests=0
+            ;;
+        --no-tests) run_tests=0 ;;
+        --no-load) run_load=0 ;;
+        --test)
+            shift
+            if [ "$#" -eq 0 ]; then
+                echo "--test needs a name, for example: --test rope" >&2
+                exit 2
+            fi
+            test_filters+=("$1")
+            run_load=0
+            ;;
+        -h | --help)
+            sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1 (try --help)" >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+if [ "$run_load" -eq 1 ] || [ "$run_tests" -eq 1 ]; then
+    godot=${GODOT:-godot}
+    if ! command -v "$godot" >/dev/null 2>&1 && [ ! -x "$godot" ]; then
+        echo "GODOT is not set or points to a missing binary." >&2
+        echo "Set it with: export GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64" >&2
+        exit 1
+    fi
 fi
 
 for tool in gdformat gdlint; do
@@ -26,15 +65,37 @@ for tool in gdformat gdlint; do
     }
 done
 
-stages=()
+stage_names=()
 verdicts=()
 details=()
+durations=()
 add_result() {
-    stages+=("$1")
+    stage_names+=("$1")
     verdicts+=("$2")
     details+=("$3")
+    durations+=("$4")
 }
-header() { printf '\n=== %s ===\n' "$1"; }
+
+stage_total=2
+[ "$run_load" -eq 1 ] && stage_total=$((stage_total + 1))
+[ "$run_tests" -eq 1 ] && stage_total=$((stage_total + 1))
+stage_index=0
+
+header() {
+    stage_index=$((stage_index + 1))
+    printf '\n=== %s/%s %s ===\n' "$stage_index" "$stage_total" "$1"
+}
+
+now_ms() { date +%s%N; }
+
+elapsed() {
+    local ms=$((($(now_ms) - $1) / 1000000))
+    if [ "$ms" -lt 1000 ]; then
+        printf '%dms' "$ms"
+    else
+        printf '%d.%01ds' "$((ms / 1000))" "$((ms % 1000 / 100))"
+    fi
+}
 
 gd_files=()
 while IFS= read -r file; do
@@ -42,81 +103,114 @@ while IFS= read -r file; do
 done < <(find scripts ui tests scenes -type f -name '*.gd' -not -path '*/addons/*' 2>/dev/null | sort)
 
 # ------------------------------------------------------------------- 1. format
-header "1/4 gdformat --check"
+header "gdformat --check"
+started=$(now_ms)
 if [ "${#gd_files[@]}" -eq 0 ]; then
     echo "(no GDScript files to format yet)"
-    add_result gdformat PASS "no files"
+    add_result gdformat PASS "no files" "$(elapsed "$started")"
 elif gdformat --check "${gd_files[@]}"; then
     echo "Formatting OK (${#gd_files[@]} files)"
-    add_result gdformat PASS "${#gd_files[@]} files"
+    add_result gdformat PASS "${#gd_files[@]} files" "$(elapsed "$started")"
 else
     echo "Formatting violations found. Fix with: gdformat scripts ui tests scenes" >&2
-    add_result gdformat FAIL "needs formatting"
+    add_result gdformat FAIL "needs formatting" "$(elapsed "$started")"
 fi
 
 # --------------------------------------------------------------------- 2. lint
-header "2/4 gdlint"
+header "gdlint"
+started=$(now_ms)
 if [ "${#gd_files[@]}" -eq 0 ]; then
     echo "(no GDScript files to lint yet)"
-    add_result gdlint PASS "no files"
+    add_result gdlint PASS "no files" "$(elapsed "$started")"
 elif gdlint "${gd_files[@]}"; then
     echo "Lint OK"
-    add_result gdlint PASS "clean"
+    add_result gdlint PASS "clean" "$(elapsed "$started")"
 else
-    add_result gdlint FAIL "violations"
+    add_result gdlint FAIL "violations" "$(elapsed "$started")"
 fi
 
 # ------------------------------------------------------------- 3. project load
-header "3/4 headless project load"
-load_output=$("$godot" --headless --path "$project_root" --quit 2>&1)
-load_exit=$?
-load_errors=$(printf '%s\n' "$load_output" | grep -E 'ERROR|SCRIPT ERROR' || true)
+if [ "$run_load" -eq 1 ]; then
+    header "headless project load"
+    started=$(now_ms)
+    load_output=$("$godot" --headless --path "$project_root" --quit 2>&1)
+    load_exit=$?
+    load_errors=$(printf '%s\n' "$load_output" | grep -E 'ERROR|SCRIPT ERROR' || true)
 
-if [ "$load_exit" -ne 0 ]; then
-    printf '%s\n' "$load_output"
-    echo "Project load exited with code $load_exit" >&2
-    add_result project-load FAIL "exit $load_exit"
-elif [ -n "$load_errors" ]; then
-    echo "Errors reported during load:" >&2
-    printf '%s\n' "$load_errors" | sed 's/^/  /' >&2
-    add_result project-load FAIL "$(printf '%s\n' "$load_errors" | wc -l | tr -d ' ') error lines"
-else
-    echo "Project loads cleanly"
-    add_result project-load PASS "clean"
+    if [ "$load_exit" -ne 0 ]; then
+        printf '%s\n' "$load_output"
+        echo "Project load exited with code $load_exit" >&2
+        add_result project-load FAIL "exit $load_exit" "$(elapsed "$started")"
+    elif [ -n "$load_errors" ]; then
+        echo "Errors reported during load:" >&2
+        printf '%s\n' "$load_errors" | sed 's/^/  /' >&2
+        add_result project-load FAIL "$(printf '%s\n' "$load_errors" | wc -l | tr -d ' ') error lines" "$(elapsed "$started")"
+    else
+        echo "Project loads cleanly"
+        add_result project-load PASS "clean" "$(elapsed "$started")"
+    fi
 fi
 
 # -------------------------------------------------------------------- 4. tests
-header "4/4 GUT tests (headless)"
-gut_output=$("$godot" --headless --path "$project_root" \
-    -s addons/gut/gut_cmdln.gd \
-    -gdir=res://tests -ginclude_subdirs -gexit -glog=1 2>&1)
-gut_exit=$?
+if [ "$run_tests" -eq 1 ]; then
+    header "GUT tests (headless)"
+    started=$(now_ms)
+    gut_targets=()
+    if [ "${#test_filters[@]}" -eq 0 ]; then
+        gut_targets=(-gdir=res://tests -ginclude_subdirs)
+    else
+        match_files=()
+        for filter in "${test_filters[@]}"; do
+            if [ -f "$filter" ]; then
+                match_files+=("$filter")
+                continue
+            fi
+            while IFS= read -r match; do
+                match_files+=("$match")
+            done < <(find tests -type f -name "*${filter}*.gd" | sort)
+        done
+        if [ "${#match_files[@]}" -eq 0 ]; then
+            echo "No test files match: ${test_filters[*]}" >&2
+            exit 2
+        fi
+        for match in "${match_files[@]}"; do
+            gut_targets+=("-gtest=res://${match#./}")
+            echo "  ${match}"
+        done
+    fi
 
-# GUT wraps its summary in ANSI colour codes; strip them before parsing.
-gut_clean=$(printf '%s\n' "$gut_output" | sed -E 's/\x1B\[[0-9;]*m//g')
-tests=$(printf '%s\n' "$gut_clean" | sed -nE 's/^Tests[[:space:]]+([0-9]+).*/\1/p' | head -n 1)
-passing=$(printf '%s\n' "$gut_clean" | sed -nE 's/.*Passing Tests[[:space:]]+([0-9]+).*/\1/p' | head -n 1)
-failing=$(printf '%s\n' "$gut_clean" | sed -nE 's/.*Failing Tests[[:space:]]+([0-9]+).*/\1/p' | head -n 1)
-tests=${tests:-0}
-passing=${passing:-0}
-failing=${failing:-0}
+    gut_output=$("$godot" --headless --path "$project_root" \
+        -s addons/gut/gut_cmdln.gd \
+        "${gut_targets[@]}" -gexit -glog=1 2>&1)
+    gut_exit=$?
 
-if [ "$gut_exit" -ne 0 ] || [ "$failing" -gt 0 ] || [ "$tests" -eq 0 ]; then
-    printf '%s\n' "$gut_output"
-    echo "GUT: tests=$tests passing=$passing failing=$failing exit=$gut_exit" >&2
-    [ "$tests" -eq 0 ] && echo "No tests were collected from res://tests." >&2
-    add_result gut FAIL "tests=$tests failing=$failing exit=$gut_exit"
-else
-    echo "GUT: tests=$tests passing=$passing failing=$failing"
-    add_result gut PASS "tests=$tests passing=$passing"
+    # GUT wraps its summary in ANSI colour codes; strip them before parsing.
+    gut_clean=$(printf '%s\n' "$gut_output" | sed -E 's/\x1B\[[0-9;]*m//g')
+    tests=$(printf '%s\n' "$gut_clean" | sed -nE 's/^Tests[[:space:]]+([0-9]+).*/\1/p' | head -n 1)
+    passing=$(printf '%s\n' "$gut_clean" | sed -nE 's/.*Passing Tests[[:space:]]+([0-9]+).*/\1/p' | head -n 1)
+    failing=$(printf '%s\n' "$gut_clean" | sed -nE 's/.*Failing Tests[[:space:]]+([0-9]+).*/\1/p' | head -n 1)
+    tests=${tests:-0}
+    passing=${passing:-0}
+    failing=${failing:-0}
+
+    if [ "$gut_exit" -ne 0 ] || [ "$failing" -gt 0 ] || [ "$tests" -eq 0 ]; then
+        printf '%s\n' "$gut_output"
+        echo "GUT: tests=$tests passing=$passing failing=$failing exit=$gut_exit" >&2
+        [ "$tests" -eq 0 ] && echo "No tests were collected from res://tests." >&2
+        add_result gut FAIL "tests=$tests failing=$failing exit=$gut_exit" "$(elapsed "$started")"
+    else
+        echo "GUT: tests=$tests passing=$passing failing=$failing"
+        add_result gut PASS "tests=$tests passing=$passing" "$(elapsed "$started")"
+    fi
 fi
 
 # ------------------------------------------------------------------- summary
 printf '\n================ SUMMARY ================\n'
 failed=0
-for i in "${!stages[@]}"; do
-    printf '  %-14s %-5s %s\n' "${stages[$i]}" "${verdicts[$i]}" "${details[$i]}"
-    [ "${verdicts[$i]}" = PASS ] || failed=$((failed + 1))
+for index in "${!stage_names[@]}"; do
+    printf '  %-14s %-5s %-22s %s\n' \
+        "${stage_names[$index]}" "${verdicts[$index]}" "${details[$index]}" "${durations[$index]}"
+    [ "${verdicts[$index]}" = PASS ] || failed=$((failed + 1))
 done
 printf '=========================================\n'
 

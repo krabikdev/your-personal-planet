@@ -104,9 +104,8 @@ func test_boy_can_walk_across_the_surface() -> void:
 	var player: Boy = game.get_node("Player") as Boy
 	var start: Vector3 = player.global_position
 	Input.action_press("move_forward")
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(0.35).timeout
 	Input.action_release("move_forward")
-	await get_tree().create_timer(0.2).timeout
 
 	assert_gt(
 		start.distance_to(player.global_position), 0.35, "the boy should be able to walk freely"
@@ -151,8 +150,8 @@ func test_debris_dot_previews_during_the_warning() -> void:
 	var first_scale: float = node.scale.x
 	assert_lt(first_scale, 0.2, "the preview should start as a tiny dot")
 
-	await get_tree().create_timer(2.0).timeout
-	assert_gt(node.scale.x, first_scale + 0.02, "the dot should grow as the junk approaches")
+	await get_tree().create_timer(0.5).timeout
+	assert_gt(node.scale.x, first_scale + 0.01, "the dot should grow as the junk approaches")
 	assert_lt(node.scale.x, 1.0, "it should still be small during the warning")
 
 
@@ -164,7 +163,8 @@ func test_debris_flyby_is_silent() -> void:
 
 	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 	debris.force_spawn(0.5)
-	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.3).timeout
+	debris.debug_launch_now()
+	await wait_process_frames(1)
 
 	var node: Node3D = debris.get_node_or_null("Debris") as Node3D
 	assert_not_null(node, "the flyby should still exist")
@@ -206,7 +206,8 @@ func test_debris_appears_far_from_the_planet() -> void:
 	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 	var planet: Planet = game.get_node("Planet") as Planet
 	debris.force_spawn()
-	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.2).timeout
+	debris.debug_launch_now()
+	await wait_process_frames(1)
 
 	var node: Node3D = debris.get_node_or_null("Debris") as Node3D
 	assert_not_null(node, "the flyby should have created its debris")
@@ -231,7 +232,8 @@ func test_debris_is_caught_without_pressing_the_net() -> void:
 	var player: Boy = game.get_node("Player") as Boy
 	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 	debris.force_spawn(0.5)
-	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.2).timeout
+	debris.debug_launch_now()
+	await wait_process_frames(1)
 
 	var node: Node3D = debris.get_node("Debris") as Node3D
 	node.global_position = player.get_net_catch_point()
@@ -251,7 +253,8 @@ func test_the_net_reaches_farther_than_before() -> void:
 	var player: Boy = game.get_node("Player") as Boy
 	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 	debris.force_spawn(0.5)
-	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.2).timeout
+	debris.debug_launch_now()
+	await wait_process_frames(1)
 
 	assert_gt(DebrisManager.NET_CATCH_RADIUS, 1.5, "the catch radius should be generous")
 	var node: Node3D = debris.get_node("Debris") as Node3D
@@ -268,7 +271,8 @@ func test_the_automatic_catch_swings_the_net_without_a_whoosh() -> void:
 	var player: Boy = game.get_node("Player") as Boy
 	var debris: DebrisManager = game.get_node("DebrisManager") as DebrisManager
 	debris.force_spawn(0.5)
-	await get_tree().create_timer(DebrisManager.WARNING_TIME + 0.2).timeout
+	debris.debug_launch_now()
+	await wait_process_frames(1)
 
 	assert_null(player._audio.stream, "the boy should not have made a sound yet")
 	var node: Node3D = debris.get_node("Debris") as Node3D
@@ -332,10 +336,10 @@ func test_run_increases_the_boy_speed() -> void:
 
 	var player: Boy = game.get_node("Player") as Boy
 	Input.action_press("move_forward")
-	await get_tree().create_timer(0.8).timeout
+	await get_tree().create_timer(0.35).timeout
 	var walk_speed: float = player.velocity.length()
 	Input.action_press("run")
-	await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(0.3).timeout
 	var run_speed: float = player.velocity.length()
 	Input.action_release("run")
 	Input.action_release("move_forward")
@@ -357,7 +361,7 @@ func test_the_duke_turns_smoothly_towards_the_stick() -> void:
 	Input.action_press("move_right")
 	await wait_physics_frames(1)
 	var early: Vector3 = -player.global_transform.basis.z
-	await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(0.25).timeout
 	var late: Vector3 = -player.global_transform.basis.z
 	Input.action_release("move_right")
 
@@ -384,7 +388,7 @@ func test_net_swing_raises_the_catch_point() -> void:
 		rest_height + 0.2,
 		"the net should rise above the boy during the swing"
 	)
-	await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(0.35).timeout
 	assert_false(player.is_net_active(), "the swing should end")
 
 
@@ -422,7 +426,7 @@ func test_holding_q_points_the_camera_straight_up_from_the_duke() -> void:
 	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
 	var player: Boy = game.get_node("Player") as Boy
 	Input.action_press("sky_view")
-	await get_tree().create_timer(0.6).timeout
+	await get_tree().create_timer(0.3).timeout
 
 	var camera: Camera3D = rig.get_camera()
 	var look: Vector3 = -camera.global_transform.basis.z
@@ -445,7 +449,7 @@ func test_the_sky_camera_follows_the_mouse_in_every_direction() -> void:
 
 	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
 	Input.action_press("sky_view")
-	await get_tree().create_timer(0.4).timeout
+	await get_tree().create_timer(0.25).timeout
 	var start_pitch: float = rig.get_sky_pitch()
 	var start_yaw: float = rig.get_sky_yaw()
 
@@ -460,7 +464,7 @@ func test_the_sky_camera_follows_the_mouse_in_every_direction() -> void:
 	assert_lt(rig.get_sky_pitch(), start_pitch - 0.1, "moving the mouse down tilts the view down")
 
 	Input.action_release("sky_view")
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(0.2).timeout
 	assert_false(rig.is_sky_view(), "releasing Q should return to the chase camera")
 
 
