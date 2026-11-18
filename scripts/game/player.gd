@@ -511,7 +511,6 @@ func _update_cold(delta: float) -> void:
 	if rope != null and rope.is_planted():
 		_cold = minf(_cold, ROPE_MAX_COLD)
 	if not is_equal_approx(previous, _cold):
-		_model.set_cold(_cold)
 		cold_changed.emit(_cold)
 	if _cold >= 1.0:
 		freeze()
