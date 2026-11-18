@@ -102,6 +102,34 @@ func test_holding_space_reels_the_boy_back_to_the_surface() -> void:
 	assert_lt(player.get_altitude(), 0.6, "holding Space should crawl the boy back down the rope")
 
 
+func test_space_slows_the_flight_instead_of_throwing_the_boy_back() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+
+	var player: Boy = game.get_node("Player") as Boy
+	var planet: Planet = game.get_node("Planet") as Planet
+	player.plant_stake()
+	await wait_physics_frames(1)
+
+	var up: Vector3 = player.get_up()
+	player.global_position = planet.get_center() + up * (planet.radius + 5.0)
+	player.velocity = up * 5.0
+	player._coyote = 0.0
+	player._rope_brake_latch = false
+	Input.action_press("jump")
+	await wait_physics_frames(1)
+	assert_gt(
+		player.velocity.dot(up), 3.5, "the first frame must not bounce him back towards the stake"
+	)
+
+	await get_tree().create_timer(0.5).timeout
+	assert_lt(player.velocity.dot(up), 1.0, "the winch should gradually eat the outward speed")
+
+	await get_tree().create_timer(1.2).timeout
+	Input.action_release("jump")
+	assert_lt(player.get_altitude(), 4.6, "then it should start pulling him home")
+
+
 func test_removing_the_stake_removes_the_rope() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(3)
