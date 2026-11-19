@@ -46,6 +46,17 @@ const BARK_COLORS: Array[Color] = [
 const LIANA_COLORS: Array[Color] = [
 	Color("dcc681"), Color("cfb56b"), Color("c2a65e"), Color("b39752")
 ]
+## Dark orange turned soil under every plant. The stain is a handful of thin
+## lobes, so its outline is a different amoeba for every prop.
+const SOIL_COLORS: Array[Color] = [
+	Color("9a4a1a"), Color("8c4217"), Color("a2551f"), Color("7e3a13")
+]
+## How wide the stain is in world metres, per Kind: grass, bush, sapling, tree,
+## big tree. Monsters do not dig anything up.
+const SOIL_RADIUS: Array[float] = [0.4, 0.85, 1.05, 1.3, 1.8]
+## The stain lies this far above the mathematical surface, so it never z-fights
+## the planet mesh.
+const SOIL_LIFT: float = 0.014
 const SCALE_MIN: float = 0.9
 const SCALE_MAX: float = 1.2
 ## Every plant is drawn at twice the size it is modelled at, so the numbers in
@@ -96,6 +107,10 @@ var _platforms: Array[Vector3] = []
 var _platform_radii: Array[float] = []
 var _trunk_radius: float = 0.0
 var _trunk_height: float = 0.0
+var _soil_radius: float = 0.0
+var _soil_lobes: int = 0
+var _soil_color: Color = SOIL_COLORS[0]
+var _soil_sag: float = 0.0
 
 
 func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
@@ -133,6 +148,10 @@ func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
 			_build_big_tree()
 		_:
 			_build_monster()
+	# Every plant drags a stain of turned soil out of the ground with it. It is
+	# part of the same prop, so it arrives and rides the surface as one piece.
+	if kind != Kind.MONSTER:
+		_build_soil()
 	set_process(kind == Kind.MONSTER)
 	if kind == Kind.MONSTER:
 		add_to_group("monsters")
@@ -188,6 +207,25 @@ func get_trunk_collider() -> StaticBody3D:
 ## How wide the trunk collider is in the world, in metres.
 func get_trunk_radius() -> float:
 	return _trunk_radius * _base_scale
+
+
+## The world width of the turned-soil stain under the plant; zero for monsters.
+func get_soil_radius() -> float:
+	return _soil_radius
+
+
+func get_soil_lobe_count() -> int:
+	return _soil_lobes
+
+
+func get_soil_color() -> Color:
+	return _soil_color
+
+
+## How far the outer soil lobes dip below the tangent plane on a small planet,
+## in world metres. Zero when there is no planet to curve around.
+func get_soil_sag() -> float:
+	return _soil_sag
 
 
 ## The world position of a platform's centre, for tests and for anyone who has
@@ -457,6 +495,53 @@ func _update_transform(forward: Vector3) -> void:
 
 
 # ------------------------------------------------------------------ the plants
+
+
+## A stain of dark orange soil under the plant. Its size comes from the kind of
+## plant and its outline from a few overlapping lobes, so no two stains are the
+## same shape. The lobes sit on the sphere itself, not on its tangent plane, so
+## a big stain does not hover at the rim on a tiny planet.
+func _build_soil() -> void:
+	var index: int = clampi(kind, 0, SOIL_RADIUS.size() - 1)
+	_soil_radius = SOIL_RADIUS[index] * _size_scale
+	_soil_color = SOIL_COLORS[_rng.randi_range(0, SOIL_COLORS.size() - 1)]
+	var radius: float = _soil_radius / maxf(_base_scale, 0.01)
+	var soil: StandardMaterial3D = _material(_soil_color, 0.99)
+	var mesher := PropMesher.new()
+	var core: float = radius * _rng.randf_range(0.5, 0.62)
+	_add_soil_lobe(mesher, Vector3.ZERO, core, soil)
+	var lobes: int = _rng.randi_range(3, 5)
+	for i: int in lobes:
+		var around: float = TAU * float(i) / float(lobes) + _rng.randf_range(-0.3, 0.3)
+		var distance: float = radius * _rng.randf_range(0.28, 0.55)
+		var offset := Vector3(cos(around) * distance, 0.0, sin(around) * distance)
+		_add_soil_lobe(mesher, offset, radius * _rng.randf_range(0.3, 0.45), soil)
+	_soil_lobes = lobes + 1
+	mesher.commit(_body)
+
+
+func _add_soil_lobe(
+	mesher: PropMesher, offset: Vector3, radius: float, material: StandardMaterial3D
+) -> void:
+	var lobe := SphereMesh.new()
+	lobe.radius = radius
+	lobe.height = radius * 0.4
+	lobe.radial_segments = 14
+	lobe.rings = 6
+	var tilt := Vector3(0.0, _rng.randf_range(0.0, 360.0), _rng.randf_range(-3.0, 3.0))
+	var squash := Vector3(_rng.randf_range(0.95, 1.3), 0.16, _rng.randf_range(0.8, 1.1))
+	mesher.add_at(lobe, Vector3(offset.x, _soil_height(offset), offset.z), material, tilt, squash)
+
+
+## The height of the ground a lobe stands on, relative to the prop's own origin.
+func _soil_height(offset: Vector3) -> float:
+	var distance: float = Vector2(offset.x, offset.z).length() * _base_scale
+	var planet_radius: float = 1000000.0
+	if planet != null:
+		planet_radius = maxf(planet.radius, 0.001)
+	var sag: float = distance * distance / (2.0 * planet_radius)
+	_soil_sag = maxf(_soil_sag, sag)
+	return (SOIL_LIFT - sag) / maxf(_base_scale, 0.01)
 
 
 ## A tuft of dead straw: thin tapered blades that lean out of the dust.
