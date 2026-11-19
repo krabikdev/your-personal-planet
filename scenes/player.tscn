@@ -32,3 +32,9 @@ unique_name_in_owner = true
 volume_db = -9.0
 unit_size = 5.0
 max_distance = 35.0
+
+[node name="Pour" type="AudioStreamPlayer3D" parent="."]
+unique_name_in_owner = true
+volume_db = -13.0
+unit_size = 3.0
+max_distance = 14.0

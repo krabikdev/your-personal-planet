@@ -17,6 +17,9 @@ const ROPE_REEL_ACCEL: float = 9.0
 const ROPE_MAX_COLD: float = 0.9
 const MAX_FALL_SPEED: float = 26.0
 const FOOTSTEP_DB: float = -9.0
+## The watering loop is meant to sit under everything else: it is a trickle, not
+## an event.
+const POUR_DB: float = -13.0
 const FOOTSTEP_PITCH_MIN: float = 0.05
 const FOOTSTEP_PITCH_MAX: float = 0.10
 const GROUND_STICK: float = 0.12
@@ -78,6 +81,7 @@ var _streams: Dictionary[String, AudioStream] = {}
 @onready var _model: PrinceModel = %Visual
 @onready var _audio: AudioStreamPlayer3D = %Audio
 @onready var _winch: AudioStreamPlayer3D = %Winch
+@onready var _pour: AudioStreamPlayer3D = %Pour
 
 
 func _ready() -> void:
@@ -93,6 +97,7 @@ func _ready() -> void:
 		if stream != null:
 			_streams[key] = stream
 	_setup_winch()
+	_setup_pour()
 
 
 func _setup_winch() -> void:
@@ -105,6 +110,20 @@ func _setup_winch() -> void:
 	stream.loop_begin = 0
 	stream.loop_end = int(stream.get_length() * stream.mix_rate)
 	_winch.stream = stream
+
+
+## The watering can trickles while the button is held. The loop is quiet and
+## follows the player, so it reads as water falling next to him.
+func _setup_pour() -> void:
+	if _pour == null:
+		return
+	var stream: AudioStreamWAV = load("res://assets/audio/water_pour.wav") as AudioStreamWAV
+	if stream == null:
+		return
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	stream.loop_end = int(stream.get_length() * stream.mix_rate)
+	_pour.stream = stream
 
 
 func is_winching() -> bool:
@@ -302,10 +321,26 @@ func set_watering(active: bool) -> void:
 		return
 	watering = wanted
 	_model.set_watering(wanted)
+	_update_pour_loop()
 
 
 func is_watering() -> bool:
 	return watering
+
+
+func is_pour_loop_playing() -> bool:
+	return _pour != null and _pour.playing
+
+
+func _update_pour_loop() -> void:
+	if _pour == null or _pour.stream == null:
+		return
+	if watering and not dead and not locked:
+		_pour.volume_db = POUR_DB + linear_to_db(clampf(AudioDirector.sfx_volume, 0.001, 1.0))
+		if not _pour.playing:
+			_pour.play()
+	elif _pour.playing:
+		_pour.stop()
 
 
 ## The patch of ground directly in front of his feet that the can waters.

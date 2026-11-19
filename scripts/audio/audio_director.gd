@@ -23,6 +23,9 @@ const SFX_PATHS: Dictionary[String, String] = {
 	"freeze": "res://assets/audio/freeze.wav",
 	"ui_click": "res://assets/audio/ui_click.wav",
 	"wind": "res://assets/audio/wind.wav",
+	"sprout": "res://assets/audio/sprout.wav",
+	"mature": "res://assets/audio/mature.wav",
+	"water_pour": "res://assets/audio/water_pour.wav",
 }
 const SFX_POOL_SIZE: int = 8
 

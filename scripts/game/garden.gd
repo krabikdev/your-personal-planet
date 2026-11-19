@@ -5,8 +5,12 @@ extends Node3D
 ## front of the boy: if a plant is already there it drinks, otherwise a new
 ## stalk pushes out of the dust. Plants ride the growing planet like props do.
 
+signal sprouted(plant: PumpkinPlant)
+
 const MERGE_RADIUS: float = 0.9
 const MAX_PLANTS: int = 24
+const SPROUT_DB: float = -2.0
+const MATURE_DB: float = -1.0
 
 var planet: Planet
 
@@ -68,8 +72,18 @@ func _sprout(spot: Vector3) -> PumpkinPlant:
 	plant.name = "Plant%d" % _plants.size()
 	add_child(plant)
 	plant.setup(planet, dir)
+	plant.matured.connect(_on_plant_matured.bind(plant), CONNECT_ONE_SHOT)
 	_plants.append(plant)
+	AudioDirector.play_sfx_3d("sprout", plant.global_position, self, SPROUT_DB, 4.0)
+	sprouted.emit(plant)
 	return plant
+
+
+## The stalk has grown its pumpkin head: a small chime marks the moment.
+func _on_plant_matured(plant: PumpkinPlant) -> void:
+	if not is_instance_valid(plant):
+		return
+	AudioDirector.play_sfx_3d("mature", plant.get_head_position(), self, MATURE_DB, 5.0)
 
 
 func _on_radius_changed(new_radius: float) -> void:
