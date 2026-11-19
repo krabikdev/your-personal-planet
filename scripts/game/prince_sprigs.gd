@@ -1,28 +1,29 @@
 class_name PrinceSprigs
 extends Node3D
 
-const CHAIN_ROOTS: Array[StringName] = [&"vine_L_01", &"vine_R_01", &"stem_01"]
+const CHAIN_ROOTS: Array[StringName] = [&"vine_L_01", &"vine_R_01", &"stem_01", &"spike_01"]
 const MAX_BONES: int = 3
 const CONSTRAINT_PASSES: int = 4
 const MAX_STEP: float = 1.0 / 30.0
 const MAX_SPEED: float = 8.0
 
 const VINE_STIFFNESS: float = 150.0
-const VINE_DRAG: float = 7.0
-const VINE_LAG: float = 0.3
+const VINE_DRAG: float = 8.5
+const VINE_LAG: float = 0.5
 const VINE_SAG: float = 1.6
-const VINE_SWAY: float = 14.0
-const VINE_DIP: float = 9.0
+const VINE_SWAY: float = 10.0
+const VINE_DIP: float = 6.0
 const STEM_SWAY_SHARE: float = 0.4
-const IDLE_SWAY: float = 2.5
+const IDLE_SWAY: float = 1.5
 const IDLE_RATE: float = 2.2
 const TURN_GAIN: float = 0.06
-const TURN_MAX: float = 0.18
-const TURN_RESPONSE: float = 8.0
+const TURN_MAX: float = 0.15
+const TURN_ATTACK: float = 8.0
+const TURN_RELEASE: float = 2.5
 
 const STEM_STIFFNESS: float = 260.0
-const STEM_DRAG: float = 9.0
-const STEM_LAG: float = 0.3
+const STEM_DRAG: float = 10.5
+const STEM_LAG: float = 0.5
 const STEM_SAG: float = 0.6
 
 const MIN_DIRECTION: float = 0.000001
@@ -148,9 +149,16 @@ func _process(delta: float) -> void:
 		return
 	var step: float = minf(delta, MAX_STEP)
 	_time += step
-	_turn = lerpf(_turn, _turn_target, 1.0 - exp(-TURN_RESPONSE * step))
+	# Fast attack, slow release: a turn is caught the frame it happens, and
+	# the tips trail off after it instead of snapping back with the next frame.
+	var rate: float = TURN_ATTACK if absf(_turn_target) > absf(_turn) else TURN_RELEASE
+	_turn = lerpf(_turn, _turn_target, 1.0 - exp(-rate * step))
+	# Two half steps: stiff springs ring on a single explicit step, and the
+	# ringing reads as jitter on the shortest chains.
+	var half: float = step * 0.5
 	for chain: int in _chains.size():
-		_simulate(chain, step)
+		_simulate(chain, half)
+		_simulate(chain, half)
 		_apply(chain)
 
 
