@@ -216,6 +216,109 @@ func _setup() -> void:
 					]
 				)
 			)
+		"flora":
+			var flora: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+			var flora_planet: Planet = game.get_node("Planet") as Planet
+			var flora_player: Boy = game.get_node("Player") as Boy
+			flora_planet.apply_radius(30.0)
+			flora_player.snap_to_surface()
+			await get_tree().process_frame
+			flora.debug_spawn_all()
+			await get_tree().process_frame
+			var flora_props: Array[DecorProp] = flora.get_props()
+			var flora_centre: Vector3 = flora_props[2].global_position
+			var flora_up: Vector3 = (flora_centre - flora_planet.get_center()).normalized()
+			var flora_reference: Vector3 = Vector3.FORWARD
+			if absf(flora_reference.dot(flora_up)) > 0.9:
+				flora_reference = Vector3.RIGHT
+			var flora_line: Vector3 = (
+				(flora_reference - flora_up * flora_reference.dot(flora_up)).normalized()
+			)
+			var flora_side: Vector3 = flora_line.cross(flora_up).normalized()
+			var flora_camera := Camera3D.new()
+			flora_camera.name = "FloraCamera"
+			game.add_child(flora_camera)
+			flora_camera.fov = 50.0
+			flora_camera.make_current()
+			flora_camera.global_position = flora_centre + flora_side * 6.5 + flora_up * 2.2
+			flora_camera.look_at(flora_centre + flora_up * 1.1, flora_up)
+			var flora_sun: DirectionalLight3D = game.get_node("Sun") as DirectionalLight3D
+			flora_sun.global_position = (
+				flora_centre + (flora_up + flora_side * 0.6).normalized() * 90.0
+			)
+			flora_sun.look_at(flora_centre, flora_up)
+			await get_tree().create_timer(1.4).timeout
+		"monsters":
+			var mon: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+			var mon_planet: Planet = game.get_node("Planet") as Planet
+			var mon_player: Boy = game.get_node("Player") as Boy
+			mon_planet.apply_radius(30.0)
+			mon_player.snap_to_surface()
+			await get_tree().process_frame
+			var mon_base: Vector3 = -mon_player.get_up()
+			var mon_reference: Vector3 = Vector3.FORWARD
+			if absf(mon_reference.dot(mon_base)) > 0.9:
+				mon_reference = Vector3.RIGHT
+			var mon_line: Vector3 = (
+				(mon_reference - mon_base * mon_reference.dot(mon_base)).normalized()
+			)
+			for level: int in 4:
+				var angle: float = (float(level) - 1.5) * 3.6 / 30.0
+				var direction: Vector3 = (
+					(mon_base * cos(angle) + mon_line * sin(angle)).normalized()
+				)
+				mon._place(DecorProp.Kind.MONSTER, direction, level + 1, 0.0)
+			await get_tree().process_frame
+			var mon_props: Array[DecorProp] = mon.get_props()
+			var mon_centre: Vector3 = (
+				(mon_props[0].global_position + mon_props[3].global_position) * 0.5
+			)
+			var mon_up: Vector3 = (mon_centre - mon_planet.get_center()).normalized()
+			var mon_side: Vector3 = mon_line.cross(mon_up).normalized()
+			var mon_front: Vector3 = -mon_props[1].global_transform.basis.z
+			var mon_camera := Camera3D.new()
+			mon_camera.name = "MonsterCamera"
+			game.add_child(mon_camera)
+			mon_camera.fov = 50.0
+			mon_camera.make_current()
+			mon_camera.global_position = mon_centre + mon_front * 18.0 + mon_up * 4.6
+			mon_camera.look_at(mon_centre + mon_up * 2.0, mon_up)
+			var mon_sun: DirectionalLight3D = game.get_node("Sun") as DirectionalLight3D
+			mon_sun.global_position = mon_centre + (mon_up + mon_side * 0.6).normalized() * 90.0
+			mon_sun.look_at(mon_centre, mon_up)
+			await get_tree().create_timer(1.4).timeout
+		"decor":
+			var decor: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+			var decor_planet: Planet = game.get_node("Planet") as Planet
+			var decor_player: Boy = game.get_node("Player") as Boy
+			decor_planet.apply_radius(30.0)
+			decor_player.snap_to_surface()
+			await get_tree().process_frame
+			decor.debug_spawn_all()
+			await get_tree().process_frame
+			var decor_props: Array[DecorProp] = decor.get_props()
+			var decor_centre: Vector3 = decor_props[4].global_position
+			var decor_up: Vector3 = (decor_centre - decor_planet.get_center()).normalized()
+			var decor_reference: Vector3 = Vector3.FORWARD
+			if absf(decor_reference.dot(decor_up)) > 0.9:
+				decor_reference = Vector3.RIGHT
+			var decor_line: Vector3 = (
+				(decor_reference - decor_up * decor_reference.dot(decor_up)).normalized()
+			)
+			var decor_side: Vector3 = decor_line.cross(decor_up).normalized()
+			var decor_camera := Camera3D.new()
+			decor_camera.name = "DecorCamera"
+			game.add_child(decor_camera)
+			decor_camera.fov = 55.0
+			decor_camera.make_current()
+			decor_camera.global_position = decor_centre + decor_side * 15.0 + decor_up * 4.2
+			decor_camera.look_at(decor_centre + decor_up * 1.9, decor_up)
+			var decor_sun: DirectionalLight3D = game.get_node("Sun") as DirectionalLight3D
+			decor_sun.global_position = (
+				decor_centre + (decor_up + decor_side * 0.6).normalized() * 90.0
+			)
+			decor_sun.look_at(decor_centre, decor_up)
+			await get_tree().create_timer(1.4).timeout
 		"far_side":
 			var far: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
 			far.debug_spawn_all()

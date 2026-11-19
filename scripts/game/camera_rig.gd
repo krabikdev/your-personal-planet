@@ -15,6 +15,9 @@ extends Node3D
 @export var zoom_out_limit: float = 2.2
 @export var sky_head_height: float = 1.72
 @export var sky_blend_speed: float = 6.0
+## Where the look-around starts when Q goes down: level with the duke's gaze,
+## not at the zenith. The mouse then sweeps from his feet to straight up.
+@export var sky_start_pitch: float = 0.0
 
 var _target: Node3D
 var _planet: Planet
@@ -31,7 +34,7 @@ var _target_focus: float = 1.0
 var _sky: bool = false
 var _sky_blend: float = 0.0
 var _sky_yaw: float = 0.0
-var _sky_pitch: float = PI * 0.5
+var _sky_pitch: float = 0.0
 
 @onready var _camera: Camera3D = %Camera
 
@@ -67,15 +70,16 @@ func orbit_by(pixels: float) -> void:
 	_view_yaw = wrapf(_view_yaw - pixels * mouse_sensitivity, -PI, PI)
 
 
-## Holding Q lifts the camera to the duke's head and aims it straight up, so
-## only space is visible. The mouse then looks around freely from there.
+## Holding Q lifts the camera to the duke's head and aims it along his gaze, so
+## the sky sits right above the horizon. The mouse then looks all the way up and
+## all the way down without the view ever snapping over at a pole.
 func set_sky_view(value: bool) -> void:
 	if value == _sky:
 		return
 	_sky = value
 	if value:
 		_sky_yaw = _view_yaw
-		_sky_pitch = PI * 0.5
+		_sky_pitch = clampf(sky_start_pitch, -PI * 0.5, PI * 0.5)
 
 
 func is_sky_view() -> bool:
@@ -179,8 +183,14 @@ func _process(delta: float) -> void:
 		var head: Vector3 = _orbit + orbit_up * sky_head_height
 		_camera.global_position = _camera.global_position.lerp(head, _sky_blend)
 		look_target = look_target.lerp(head + sky_forward * 3.0, _sky_blend)
-		var steep: float = clampf((absf(_sky_pitch) - 1.3) / 0.25, 0.0, 1.0)
-		up_hint = orbit_up.lerp(frame_forward, steep * _sky_blend).normalized()
+		# The up hint turns with the pitch instead of being switched to the
+		# horizon near a pole. That keeps the roll continuous through the whole
+		# sweep: looking up never snaps the world over, and looking down lands
+		# exactly on the duke's feet like it always did.
+		var sky_up: Vector3 = (
+			(orbit_up * cos(_sky_pitch) - frame_forward * sin(_sky_pitch)).normalized()
+		)
+		up_hint = orbit_up.lerp(sky_up, _sky_blend).normalized()
 
 	_camera.look_at(look_target, up_hint)
 	_camera.fov = lerpf(
