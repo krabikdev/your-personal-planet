@@ -302,6 +302,7 @@ func _toggle_inventory() -> void:
 		_hud.show_toast("Сумку можна відкрити лише на землі.", Color("d9cbb8"), 2.0)
 		return
 	_state = State.INVENTORY
+	_player.set_watering(false)
 	_inventory_ui.open(_model.items, _planet.radius, _model.water)
 	_hud.visible = false
 	get_tree().paused = true
@@ -475,6 +476,7 @@ func _on_debris_caught(kind: int, size_factor: float, shape_seed: int) -> void:
 func _open_pause() -> void:
 	if _state != State.PLAYING:
 		return
+	_player.set_watering(false)
 	_state = State.PAUSED
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

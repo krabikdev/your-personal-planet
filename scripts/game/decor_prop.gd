@@ -48,6 +48,9 @@ const LIANA_COLORS: Array[Color] = [
 ]
 const SCALE_MIN: float = 0.9
 const SCALE_MAX: float = 1.2
+## Every plant is drawn at twice the size it is modelled at, so the numbers in
+## the builders stay readable (a one metre tall dry oak, a three metre big one).
+const DECOR_SCALE: float = 2.0
 ## Level four is a monster the size of a small house, so the scales climb hard.
 const MONSTER_SCALES: Array[float] = [0.95, 1.35, 1.6, 2.05]
 
@@ -85,6 +88,8 @@ var _mesh_parts: int = 0
 var _monster_name: String = ""
 var _platforms: Array[Vector3] = []
 var _platform_radii: Array[float] = []
+var _trunk_radius: float = 0.0
+var _trunk_height: float = 0.0
 
 
 func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
@@ -95,6 +100,12 @@ func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
 	_rng.seed = _seed
 	variant = _rng.randi_range(0, 2)
 	_size_scale = _rng.randf_range(SCALE_MIN, SCALE_MAX)
+	# The scale is known before the model is built, because the colliders are
+	# placed at the final size right away.
+	if kind == Kind.MONSTER:
+		_base_scale = MONSTER_SCALES[monster_level - 1] * _rng.randf_range(0.96, 1.04)
+	else:
+		_base_scale = _size_scale * DECOR_SCALE
 	_visual = Node3D.new()
 	_visual.name = "Visual"
 	add_child(_visual)
@@ -117,9 +128,6 @@ func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
 	set_process(kind == Kind.MONSTER)
 	if kind == Kind.MONSTER:
 		add_to_group("monsters")
-		_base_scale = MONSTER_SCALES[monster_level - 1] * _rng.randf_range(0.96, 1.04)
-	else:
-		_base_scale = _size_scale
 	# A soft pop-in makes a new arrival readable without moving the prop itself.
 	_visual.scale = Vector3.ONE * 0.12
 	var pop := create_tween()
@@ -164,12 +172,29 @@ func get_platform_collider() -> StaticBody3D:
 	return get_node_or_null("Platforms") as StaticBody3D
 
 
+## The solid trunk of a sapling, tree or big oak, or null for grass and bushes.
+func get_trunk_collider() -> StaticBody3D:
+	return get_node_or_null("Trunk") as StaticBody3D
+
+
+## How wide the trunk collider is in the world, in metres.
+func get_trunk_radius() -> float:
+	return _trunk_radius * _base_scale
+
+
 ## The world position of a platform's centre, for tests and for anyone who has
 ## to know where to jump.
 func get_platform_point(index: int) -> Vector3:
 	if index < 0 or index >= _platforms.size():
 		return global_position
-	return global_transform * (_platforms[index] * _size_scale)
+	return global_transform * (_platforms[index] * _base_scale)
+
+
+## The real radius of a platform's collider, in metres.
+func get_platform_radius(index: int) -> float:
+	if index < 0 or index >= _platform_radii.size():
+		return 0.0
+	return _platform_radii[index] * 0.8 * _base_scale
 
 
 func get_monster_name() -> String:
@@ -482,6 +507,8 @@ func _build_dry_oak(height: float, girth: float, branches: int, lianas: int) -> 
 		_rng.randf_range(-lean, lean), height * 0.64, _rng.randf_range(-lean, lean)
 	)
 	_branch(mesher, Vector3.ZERO, trunk_top, girth, girth * 0.42, bark)
+	_trunk_radius = girth
+	_trunk_height = trunk_top.y
 	# Roots splaying into the dust.
 	for i: int in 3:
 		var around: float = TAU * float(i) / 3.0 + _rng.randf_range(-0.3, 0.3)
@@ -548,6 +575,7 @@ func _build_dry_oak(height: float, girth: float, branches: int, lianas: int) -> 
 			_liana(mesher, tip, length, vine)
 	_mesh_parts = mesher.get_part_count()
 	mesher.commit(_body)
+	_build_trunk_collision()
 
 
 ## The huge oak: branch tips flatten into amoeba-shaped platforms at climbing
@@ -565,6 +593,8 @@ func _build_big_tree() -> void:
 		_rng.randf_range(-0.1, 0.1), height * 0.62, _rng.randf_range(-0.1, 0.1)
 	)
 	_branch(mesher, Vector3.ZERO, trunk_top, girth, girth * 0.55, bark)
+	_trunk_radius = girth
+	_trunk_height = trunk_top.y
 	for i: int in 4:
 		var around: float = TAU * float(i) / 4.0 + _rng.randf_range(-0.25, 0.25)
 		var out := Vector3(cos(around), 0.0, sin(around))
@@ -589,21 +619,23 @@ func _build_big_tree() -> void:
 			bark,
 		)
 
-	# Platforms climb in a spiral, each step low enough for a charged jump.
+	# Platforms climb in a spiral. They are spaced far enough apart across the
+	# trunk that the duke can stand on one without the next one sitting in his
+	# head, and each step is still one charged jump.
 	var count: int = _rng.randi_range(5, 9)
 	var lowest: float = 0.72
-	var highest: float = 3.4
+	var highest: float = 3.0
 	for i: int in count:
 		var step: float = float(i) / float(maxi(count - 1, 1))
 		var platform_height: float = lerpf(lowest, highest, step)
-		var around: float = _rng.randf_range(-0.2, 0.2) + float(i) * 0.62
-		var distance: float = _rng.randf_range(1.05, 1.45)
-		var radius: float = _rng.randf_range(0.7, 1.05)
+		var around: float = _rng.randf_range(-0.05, 0.05) + float(i) * 0.9
+		var distance: float = _rng.randf_range(1.28, 1.55)
+		var radius: float = _rng.randf_range(0.42, 0.54)
 		var centre := Vector3(cos(around) * distance, platform_height, sin(around) * distance)
 		var attach := Vector3(
 			cos(around) * girth * 0.7, platform_height - 0.55, sin(around) * girth * 0.7
 		)
-		_branch(mesher, attach, centre, 0.18, 0.09, bark)
+		_branch(mesher, attach, centre, 0.16, 0.08, bark)
 		_platform(mesher, centre, radius, pad if i % 2 == 0 else pad_alt)
 		_platforms.append(centre)
 		_platform_radii.append(radius)
@@ -636,6 +668,7 @@ func _build_big_tree() -> void:
 	_mesh_parts = mesher.get_part_count()
 	mesher.commit(_body)
 	_build_platform_collision()
+	_build_trunk_collision()
 
 
 ## A platform is a lumpy pancake rather than a disc: a few squashed spheres
@@ -679,11 +712,29 @@ func _build_platform_collision() -> void:
 	for i: int in _platforms.size():
 		var holder := CollisionShape3D.new()
 		var shape := CylinderShape3D.new()
-		shape.radius = _platform_radii[i] * 0.8 * _size_scale
-		shape.height = 0.18
+		shape.radius = _platform_radii[i] * 0.8 * _base_scale
+		shape.height = 0.2 * _base_scale
 		holder.shape = shape
-		holder.position = _platforms[i] * _size_scale + Vector3(0.0, 0.02, 0.0)
+		holder.position = _platforms[i] * _base_scale - Vector3(0.0, 0.02 * _base_scale, 0.0)
 		body.add_child(holder)
+	add_child(body)
+
+
+## The trunk is solid: the duke has to walk around an oak, not through it.
+func _build_trunk_collision() -> void:
+	if _trunk_radius <= 0.0 or _trunk_height <= 0.0:
+		return
+	var body := StaticBody3D.new()
+	body.name = "Trunk"
+	body.collision_layer = 1
+	body.collision_mask = 1
+	var holder := CollisionShape3D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = _trunk_radius * _base_scale
+	shape.height = _trunk_height * _base_scale
+	holder.shape = shape
+	holder.position = Vector3(0.0, shape.height * 0.5, 0.0)
+	body.add_child(holder)
 	add_child(body)
 
 

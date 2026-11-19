@@ -154,6 +154,65 @@ func test_letting_go_starts_the_three_seconds_again() -> void:
 	Input.action_release("interact")
 
 
+func test_a_new_stalk_announces_itself() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+	var garden: Garden = game.get_garden()
+	var player: Boy = game.get_node("Player") as Boy
+	await _wait_for_ground(player)
+
+	var heard: Array[PumpkinPlant] = []
+	garden.sprouted.connect(func(plant: PumpkinPlant) -> void: heard.append(plant))
+	game.debug_grant_stone(StoneItem.Kind.WATERING_CAN)
+	game.debug_grant_water(8.0)
+	Input.action_press("interact")
+	_pour(game, 3.4)
+	Input.action_release("interact")
+
+	assert_eq(heard.size(), 1, "a fresh stalk should be heard once, when it appears")
+	assert_eq(heard[0], garden.get_plants()[0], "and it is the stalk that just sprouted")
+
+
+func test_a_watered_stalk_grows_its_head_and_chimes() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+	var garden: Garden = game.get_garden()
+	var player: Boy = game.get_node("Player") as Boy
+	await _wait_for_ground(player)
+
+	game.debug_grant_stone(StoneItem.Kind.WATERING_CAN)
+	game.debug_grant_water(8.0)
+	Input.action_press("interact")
+	_pour(game, 3.4)
+	var plant: PumpkinPlant = garden.get_plants()[0]
+	assert_false(plant.is_mature(), "a fresh stalk still has growing to do")
+
+	_pour(game, 2.6)
+	Input.action_release("interact")
+	assert_true(plant.is_mature(), "2.5 more water finish the pumpkin head")
+
+
+func test_holding_the_can_runs_the_quiet_pour_loop() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+	var player: Boy = game.get_node("Player") as Boy
+	await _wait_for_ground(player)
+
+	assert_false(player.is_pour_loop_playing(), "the can is quiet until it is used")
+	player.set_watering(true)
+	assert_true(player.is_pour_loop_playing(), "holding the can starts the trickle")
+	player.set_watering(false)
+	assert_false(player.is_pour_loop_playing(), "letting go stops it again")
+
+
+func test_the_garden_sounds_are_shipped() -> void:
+	for key: String in ["sprout", "mature", "water_pour"]:
+		assert_true(AudioDirector.SFX_PATHS.has(key), "%s should be registered" % key)
+		var stream: AudioStream = load(AudioDirector.SFX_PATHS[key]) as AudioStream
+		assert_not_null(stream, "%s should load" % key)
+		assert_gt(stream.get_length(), 0.2, "%s should be a real sound" % key)
+
+
 func test_watering_sprouts_a_plant_in_front_of_the_duke() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(3)

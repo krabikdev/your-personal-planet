@@ -347,6 +347,68 @@ def wind_sfx() -> np.ndarray:
     return normalize(noise * env, 0.24)
 
 
+def sprout_sfx() -> np.ndarray:
+    """A soft pop and a rustle as a stalk pushes out of the dust."""
+    d = 0.8
+    t = t_axis(d)
+    f = 150.0 + 320.0 * (1.0 - np.exp(-t / 0.07))
+    phase = 2.0 * math.pi * np.cumsum(f) / SR
+    pop = np.sin(phase) * np.exp(-((t - 0.06) / 0.075) ** 2) * 0.55
+    pop += 0.18 * np.sin(phase * 2.02) * np.exp(-((t - 0.06) / 0.05) ** 2)
+    soil = lowpass(rng.standard_normal(t.size), 760.0) * np.exp(-t / 0.2) * 0.5
+    rustle = highpass(rng.standard_normal(t.size), 2800.0)
+    rustle *= np.exp(-((t - 0.16) / 0.14) ** 2) * 0.10
+    return normalize(pop + soil + rustle, 0.42)
+
+
+def mature_sfx() -> np.ndarray:
+    """A small rising chime when the stalk has grown its pumpkin head."""
+    d = 2.4
+    out = np.zeros(int(d * SR))
+    for note, at, gain in ((72, 0.0, 0.9), (76, 0.13, 0.8), (79, 0.26, 0.7), (84, 0.40, 0.55)):
+        s = music_box(midi(note), 1.9, 0.2 * gain)
+        start = int(at * SR)
+        n = min(s.size, out.size - start)
+        out[start : start + n] += s[:n]
+    shimmer = highpass(rng.standard_normal(out.size), 5200.0) * np.exp(-t_axis(d) / 0.5) * 0.05
+    return normalize(out + shimmer, 0.4)
+
+
+def loop_seam(x: np.ndarray, fade_seconds: float = 0.06) -> np.ndarray:
+    """Folds the tail of a sound into its head so it can loop without a click.
+
+    The first samples morph from the discarded tail into the true beginning, so
+    the wrap from the last sample back to the first is a continuation of the
+    same waveform rather than a jump.
+    """
+    fade = max(1, int(fade_seconds * SR))
+    if x.size <= fade * 2:
+        return x
+    ramp = np.linspace(0.0, 1.0, fade)
+    if x.ndim > 1:
+        ramp = ramp[:, None]
+    head = x[-fade:] * (1.0 - ramp) + x[:fade] * ramp
+    out = x[:-fade].copy()
+    out[:fade] = head
+    return out
+
+
+def water_pour_sfx() -> np.ndarray:
+    """A quiet, seamlessly looping trickle for the watering can."""
+    d = 1.2
+    t = t_axis(d)
+    noise = rng.standard_normal(t.size)
+    body = highpass(lowpass(noise, 2400.0), 500.0)
+    body *= 0.55 + 0.18 * np.sin(2.0 * math.pi * 2.0 * t) + 0.10 * np.sin(2.0 * math.pi * 5.0 * t + 1.1)
+    gurgle = np.zeros_like(t)
+    for at, freq, gain in ((0.10, 620.0, 0.10), (0.38, 810.0, 0.07), (0.71, 540.0, 0.08), (0.97, 900.0, 0.05)):
+        gurgle += np.sin(2.0 * math.pi * freq * t) * np.exp(-((t - at) / 0.05) ** 2) * gain
+    splash = highpass(rng.standard_normal(t.size), 3800.0) * 0.12
+    splash *= 0.5 + 0.5 * np.sin(2.0 * math.pi * 3.0 * t + 0.4)
+    out = normalize(body * 0.8 + gurgle + splash, 0.3)
+    return loop_seam(out)
+
+
 def main() -> None:
     print("Rendering ambient music (this takes a few seconds)...")
     music = make_ambient_music()
@@ -375,6 +437,9 @@ def main() -> None:
         "freeze": freeze_sfx(),
         "ui_click": ui_click(),
         "wind": wind_sfx(),
+        "sprout": sprout_sfx(),
+        "mature": mature_sfx(),
+        "water_pour": water_pour_sfx(),
     }
     for name, data in sfx.items():
         path = os.path.join(OUT, name + ".wav")
