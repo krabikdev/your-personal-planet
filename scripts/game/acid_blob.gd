@@ -11,11 +11,13 @@ const ACID_COLOR := Color("a05ac8")
 
 var _target: Node3D
 var _life: float = 0.0
+var _speed: float = SPEED
 
 
-func setup(from: Vector3, target: Node3D) -> void:
+func setup(from: Vector3, target: Node3D, speed: float = SPEED) -> void:
 	global_position = from
 	_target = target
+	_speed = maxf(speed, 0.1)
 	_build()
 
 
@@ -28,7 +30,7 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 	var goal: Vector3 = _goal()
-	var step: float = SPEED * delta
+	var step: float = _speed * delta
 	if global_position.distance_to(goal) <= maxf(step, HIT_DISTANCE):
 		_hit()
 		return
@@ -52,8 +54,10 @@ func _goal() -> Vector3:
 
 
 func _hit() -> void:
-	if _target != null and is_instance_valid(_target) and _target.has_method("hit_by_acid"):
-		_target.hit_by_acid()
+	if _target != null and is_instance_valid(_target):
+		AudioDirector.play_sfx_3d("acid_hit", global_position, get_parent(), -3.0, 4.0)
+		if _target.has_method("hit_by_acid"):
+			_target.hit_by_acid()
 	queue_free()
 
 

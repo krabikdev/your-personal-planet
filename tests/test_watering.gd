@@ -192,6 +192,109 @@ func test_a_watered_stalk_grows_its_head_and_chimes() -> void:
 	assert_true(plant.is_mature(), "2.5 more water finish the pumpkin head")
 
 
+func test_a_mature_head_falls_to_the_dust_and_squashes_the_stalk() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+	var planet: Planet = game.get_node("Planet") as Planet
+	var garden: Garden = game.get_garden()
+	var spot: Vector3 = planet.get_center() + Vector3.UP * planet.radius
+	var plant: PumpkinPlant = garden.pour(spot, 2.5)
+	assert_true(plant.is_mature(), "the head is out of the stalk")
+	assert_false(plant.is_head_on_the_ground(), "but it is still up there for a moment")
+	assert_gt(
+		plant.get_head_position().distance_to(spot),
+		0.8,
+		"a grown head starts the fall on top of the stalk",
+	)
+
+	await wait_process_frames(40)
+
+	assert_true(plant.is_head_on_the_ground(), "then it lands in the dust")
+	assert_lt(
+		plant.get_head_position().distance_to(spot), 0.35, "right at the stalk's feet, not far off"
+	)
+	assert_true(plant.is_stalk_crushed(), "the stalk is flattened under the pumpkin")
+
+
+func test_the_head_rides_low_on_the_stalk() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+	var planet: Planet = game.get_node("Planet") as Planet
+	var garden: Garden = game.get_garden()
+	var spot: Vector3 = planet.get_center() + Vector3.UP * planet.radius
+	var plant: PumpkinPlant = garden.pour(spot, 2.5)
+	var lift: float = plant.get_head_position().distance_to(spot) - PumpkinPlant.STALK_MAX_HEIGHT
+
+	assert_gt(lift, 0.0, "the head sits above the tip of the stalk")
+	assert_lt(
+		lift, PumpkinPlant.HEAD_RADIUS * 0.8, "but it hugs it instead of crowning it on a pin"
+	)
+
+
+func test_watering_a_fallen_head_fills_an_invisible_bar_and_levels_it_up() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+	var planet: Planet = game.get_node("Planet") as Planet
+	var garden: Garden = game.get_garden()
+	var spot: Vector3 = planet.get_center() + Vector3.UP * planet.radius
+	var plant: PumpkinPlant = garden.pour(spot, 2.5)
+	assert_true(plant.is_mature())
+	assert_eq(plant.get_level(), 1, "a fresh head starts at level one")
+	assert_almost_eq(plant.get_attack_radius(), 10.0, 0.001)
+	var small: float = plant.get_head_radius()
+
+	var levels: Array[int] = []
+	plant.leveled_up.connect(func(level: int) -> void: levels.append(level))
+
+	plant.water(2.0)
+	await wait_process_frames(2)
+	plant.water(1.0)
+	plant.water(1.5)
+	assert_almost_eq(plant.get_charge(), 4.5, 0.001, "the bar keeps every drop")
+	assert_eq(plant.get_level(), 1, "four and a half units are not five")
+	assert_gt(plant.get_head_radius(), small, "the head swells as the bar fills")
+
+	plant.water(2.0)
+	assert_eq(plant.get_level(), 2, "five units make it level two")
+	assert_almost_eq(plant.get_charge(), PumpkinPlant.LEVEL_WATER, 0.001)
+	assert_eq(levels.size(), 1, "the upgrade is announced exactly once")
+	assert_eq(levels[0] if levels.size() > 0 else 0, 2)
+	assert_almost_eq(plant.get_attack_radius(), 15.0, 0.001, "it notices half again as far")
+	assert_almost_eq(plant.get_attack_interval(), 1.0, 0.001, "and spits twice as often")
+	assert_almost_eq(
+		plant.get_spit_speed(), AcidBlob.SPEED * 1.5, 0.001, "the blob flies half again as fast"
+	)
+	assert_gt(plant.get_head_radius(), small * 1.15, "the pumpkin itself grows")
+
+
+func test_a_level_two_head_sees_monsters_outside_the_old_ten_metres() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+	var planet: Planet = game.get_node("Planet") as Planet
+	var garden: Garden = game.get_garden()
+	var spawner: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+	var spot: Vector3 = planet.get_center() + Vector3.UP * planet.radius
+	var plant: PumpkinPlant = garden.pour(spot, 2.5)
+	var monster: DecorProp = spawner.debug_spawn_monster(Vector3.UP, 1)
+	monster.global_position = plant.get_head_position() + Vector3(12.0, 0.0, 0.0)
+
+	assert_null(plant.debug_attack_now(), "twelve metres is too far for a level one head")
+
+	plant.water(PumpkinPlant.LEVEL_WATER)
+	var blob: AcidBlob = plant.debug_attack_now()
+	assert_not_null(blob, "a level two head sees fifteen metres")
+	blob.debug_reach()
+	assert_true(monster.is_queued_for_deletion(), "and still dissolves it in one hit")
+
+
+func test_the_attack_sounds_are_shipped() -> void:
+	for key: String in ["spit", "acid_hit"]:
+		assert_true(AudioDirector.SFX_PATHS.has(key), "%s should be registered" % key)
+		var stream: AudioStream = load(AudioDirector.SFX_PATHS[key]) as AudioStream
+		assert_not_null(stream, "%s should load" % key)
+		assert_gt(stream.get_length(), 0.2, "%s should be a real sound" % key)
+
+
 func test_holding_the_can_runs_the_quiet_pour_loop() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(3)

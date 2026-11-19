@@ -147,6 +147,18 @@ func test_a_touching_monster_bites_for_its_level() -> void:
 	)
 
 
+func test_every_monster_dies_with_its_own_sound() -> void:
+	var keys: Dictionary[String, bool] = {}
+	for level: int in [1, 2, 3, 4]:
+		var key: String = DecorProp.death_sound_for_level(level)
+		assert_true(AudioDirector.SFX_PATHS.has(key), "%s should be registered" % key)
+		var stream: AudioStream = load(AudioDirector.SFX_PATHS[key]) as AudioStream
+		assert_not_null(stream, "%s should load" % key)
+		assert_gt(stream.get_length(), 0.4, "%s should be a real death cry" % key)
+		keys[key] = true
+	assert_eq(keys.size(), 4, "each of the four monsters needs its own death sound")
+
+
 func test_the_health_bar_sits_above_the_inventory_hint() -> void:
 	var game: Game = _make_game()
 	await wait_process_frames(2)

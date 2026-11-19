@@ -409,6 +409,91 @@ def water_pour_sfx() -> np.ndarray:
     return loop_seam(out)
 
 
+def spit_sfx() -> np.ndarray:
+    """The little pumpkin head's wet 'ptoo' as the acid leaves its mouth."""
+    d = 0.5
+    t = t_axis(d)
+    f = 120.0 + 520.0 * np.exp(-t / 0.10)
+    phase = 2.0 * math.pi * np.cumsum(f) / SR
+    mouth = np.sin(phase) * np.exp(-t / 0.09) * 0.6
+    spray = highpass(rng.standard_normal(t.size), 1700.0)
+    spray *= np.exp(-((t - 0.04) / 0.09) ** 2) * 0.55
+    droplet = lowpass(rng.standard_normal(t.size), 900.0) * np.exp(-t / 0.14) * 0.35
+    return normalize(mouth + spray + droplet, 0.45)
+
+
+def acid_hit_sfx() -> np.ndarray:
+    """A corrosive pop and hiss where the blob lands on a monster."""
+    d = 0.9
+    t = t_axis(d)
+    pop = np.sin(2.0 * math.pi * 190.0 * t) * np.exp(-t / 0.045) * 0.7
+    sizzle = highpass(rng.standard_normal(t.size), 2500.0)
+    sizzle *= np.exp(-t / 0.26) * (0.55 + 0.45 * np.sin(2.0 * math.pi * 31.0 * t) ** 2)
+    wet = lowpass(rng.standard_normal(t.size), 700.0) * np.exp(-t / 0.12) * 0.4
+    return normalize(pop + sizzle * 0.8 + wet, 0.5)
+
+
+def death_caterpillar_sfx() -> np.ndarray:
+    """A soft soggy squelch and settling fuzz: the caterpillar gives up."""
+    d = 1.1
+    t = t_axis(d)
+    f = 70.0 + 210.0 * np.exp(-t / 0.16)
+    phase = 2.0 * math.pi * np.cumsum(f) / SR
+    squelch = np.sin(phase) * np.exp(-t / 0.20) * 0.7
+    fuzz = lowpass(rng.standard_normal(t.size), 1500.0) * np.exp(-t / 0.26) * 0.45
+    crumble = highpass(rng.standard_normal(t.size), 3200.0) * np.exp(-t / 0.12) * 0.16
+    return normalize(squelch + fuzz + crumble, 0.5)
+
+
+def death_hydralisk_sfx() -> np.ndarray:
+    """A wet rising screech that collapses into a gurgle."""
+    d = 1.6
+    t = t_axis(d)
+    rise = np.minimum(t / 0.35, 1.0)
+    fall = np.clip((t - 0.35) / 1.0, 0.0, 1.0)
+    f = 300.0 + 470.0 * rise - 250.0 * fall
+    phase = 2.0 * math.pi * np.cumsum(f) / SR
+    screech = (np.sin(phase) + 0.4 * np.sin(phase * 2.03)) * np.exp(-t / 0.55) * 0.55
+    hiss = highpass(rng.standard_normal(t.size), 2600.0) * np.exp(-t / 0.4) * 0.3
+    gurgle = lowpass(rng.standard_normal(t.size), 700.0) * np.exp(-t / 0.32) * 0.4
+    return normalize(screech + hiss + gurgle, 0.5)
+
+
+def death_ragnos_sfx() -> np.ndarray:
+    """A hulking growl that ends in a heavy body hitting the dust."""
+    d = 2.0
+    t = t_axis(d)
+    f = 40.0 + 100.0 * np.exp(-t / 0.5)
+    phase = 2.0 * math.pi * np.cumsum(f) / SR
+    growl = np.sin(phase) * np.exp(-t / 0.7) * 0.8
+    growl *= 1.0 + 0.3 * np.sin(2.0 * math.pi * 17.0 * t)
+    thud = lowpass(rng.standard_normal(t.size), 320.0)
+    thud *= np.exp(-((t - 0.55) / 0.22) ** 2) * 0.65
+    crack = highpass(rng.standard_normal(t.size), 2400.0)
+    crack *= np.exp(-((t - 0.62) / 0.08) ** 2) * 0.18
+    return normalize(growl + thud + crack, 0.55)
+
+
+def death_zodd_sfx() -> np.ndarray:
+    """The huge minotaur's last bellow, a long rumble and falling rubble."""
+    d = 2.8
+    t = t_axis(d)
+    f = 26.0 + 80.0 * np.exp(-t / 0.8)
+    phase = 2.0 * math.pi * np.cumsum(f) / SR
+    bellow = (np.sin(phase) + 0.35 * np.sin(phase * 1.51)) * np.exp(-t / 1.1) * 0.85
+    bellow *= 1.0 + 0.25 * np.sin(2.0 * math.pi * 9.0 * t)
+    rumble = lowpass(rng.standard_normal(t.size), 220.0)
+    rumble *= np.exp(-((t - 0.9) / 0.6) ** 2) * 0.7
+    debris = np.zeros_like(t)
+    for _ in range(18):
+        at = rng.uniform(0.4, d - 0.2)
+        ln = int(rng.uniform(0.01, 0.05) * SR)
+        start = int(at * SR)
+        burst = rng.standard_normal(ln) * np.exp(-np.arange(ln) / (ln * 0.35))
+        debris[start : start + ln] += highpass(burst, 1800.0) * rng.uniform(0.04, 0.14)
+    return normalize(bellow + rumble + debris, 0.6)
+
+
 def main() -> None:
     print("Rendering ambient music (this takes a few seconds)...")
     music = make_ambient_music()
@@ -440,6 +525,12 @@ def main() -> None:
         "sprout": sprout_sfx(),
         "mature": mature_sfx(),
         "water_pour": water_pour_sfx(),
+        "spit": spit_sfx(),
+        "acid_hit": acid_hit_sfx(),
+        "death_caterpillar": death_caterpillar_sfx(),
+        "death_hydralisk": death_hydralisk_sfx(),
+        "death_ragnos": death_ragnos_sfx(),
+        "death_zodd": death_zodd_sfx(),
     }
     for name, data in sfx.items():
         path = os.path.join(OUT, name + ".wav")

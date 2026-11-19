@@ -3,19 +3,39 @@ extends Node3D
 
 ## A watered patch of ground. A stalk creeps out of the dust and swells for
 ## five minutes of ordinary time; every unit of water poured on it skips two
-## minutes of that wait. Once the stalk has grown a little pumpkin head the
-## plant guards the ground around it and spits acid at nearby monsters.
+## minutes of that wait. Once the stalk has grown a little pumpkin head it
+## topples under the weight of that head, which drops into the dust and guards
+## the ground around it. Water poured on the finished head fills an invisible
+## bar; five units later it is level two and much meaner.
 
 signal matured
+signal leveled_up(level: int)
 
 const GROWTH_SECONDS: float = 300.0
 const SECONDS_PER_WATER: float = 120.0
 const HEAD_START: float = 0.72
 const STALK_MIN_HEIGHT: float = 0.1
 const STALK_MAX_HEIGHT: float = 1.0
+## How far above the tip of the stalk the head rides. It sits low, so the stalk
+## does not look like a hat pin under it.
+const HEAD_SIT: float = 0.55
+## Once mature the head drops this many head radii above the ground: resting in
+## the dust with the crushed stalk underneath.
+const HEAD_GROUND_LIFT: float = 1.12
+const FALL_SECONDS: float = 0.45
 const ATTACK_RADIUS: float = 10.0
 const ATTACK_INTERVAL: float = 2.0
 const HEAD_RADIUS: float = 0.21
+## Water poured on a finished head feeds a bar the player never sees. Five units
+## (five seconds of pouring, or the same amount spread over many visits) push
+## the head to level two.
+const LEVEL_WATER: float = 5.0
+## Level two reaches half again as far, spits half again as fast, and its blob
+## flies half again as quickly.
+const LEVEL_TWO_REACH: float = 1.5
+const LEVEL_TWO_RATE: float = 0.5
+const LEVEL_TWO_SPEED: float = 1.5
+const LEVEL_TWO_HEAD_SCALE: float = 1.22
 const PUMPKIN_COLOR := Color("dd8a3c")
 const PUMPKIN_DARK := Color("b96b2c")
 const STEM_COLOR := Color("6b7a3c")
@@ -33,6 +53,11 @@ var _stalk: MeshInstance3D
 var _stalk_mesh: CylinderMesh
 var _leaves: Array[MeshInstance3D] = []
 var _head: Node3D
+var _charge: float = 0.0
+var _level: int = 1
+var _head_scale: float = 1.0
+var _head_grounded: bool = false
+var _falling: bool = false
 
 
 func setup(p_planet: Planet, p_dir: Vector3) -> void:
@@ -55,21 +80,75 @@ func get_growth_seconds() -> float:
 	return _growth
 
 
+## The head has left the stalk and now lies in the dust.
+func is_head_on_the_ground() -> bool:
+	return _head_grounded and not _falling
+
+
+## The stalk is a flat smear under the fallen pumpkin.
+func is_stalk_crushed() -> bool:
+	return _stalk != null and _stalk.scale.y < 0.2
+
+
+func get_level() -> int:
+	return _level
+
+
+## How much water the finished head has drunk towards level two, 0 to 5.
+func get_charge() -> float:
+	return _charge
+
+
+func get_head_scale() -> float:
+	return _head_scale
+
+
+func get_head_radius() -> float:
+	return HEAD_RADIUS * _head_scale
+
+
+func get_attack_radius() -> float:
+	if _level >= 2:
+		return ATTACK_RADIUS * LEVEL_TWO_REACH
+	return ATTACK_RADIUS
+
+
+func get_attack_interval() -> float:
+	if _level >= 2:
+		return ATTACK_INTERVAL * LEVEL_TWO_RATE
+	return ATTACK_INTERVAL
+
+
+func get_spit_speed() -> float:
+	if _level >= 2:
+		return AcidBlob.SPEED * LEVEL_TWO_SPEED
+	return AcidBlob.SPEED
+
+
 func get_head_position() -> Vector3:
 	if _head != null and _head.visible:
 		return _head.global_position
 	return global_position
 
 
-## Each unit of water is a two-minute shortcut on the stalk's growth.
+## Each unit of water is a two-minute shortcut on the stalk's growth. Once the
+## head has fallen, water is no longer growth: it fills the head's own bar.
 func water(amount: float) -> void:
-	if amount <= 0.0 or _mature:
+	if amount <= 0.0:
 		return
-	_growth = minf(_growth + amount * SECONDS_PER_WATER, GROWTH_SECONDS)
-	_update_visual()
-	if _growth >= GROWTH_SECONDS:
-		_mature = true
-		matured.emit()
+	if not _mature:
+		_growth = minf(_growth + amount * SECONDS_PER_WATER, GROWTH_SECONDS)
+		_update_visual()
+		if _growth >= GROWTH_SECONDS:
+			_mature = true
+			_drop_head()
+			matured.emit()
+		return
+	_charge = minf(_charge + amount, LEVEL_WATER)
+	_update_head_scale()
+	if _level < 2 and _charge >= LEVEL_WATER:
+		_level = 2
+		leveled_up.emit(_level)
 
 
 func _process(delta: float) -> void:
@@ -79,7 +158,10 @@ func _process(delta: float) -> void:
 		_update_visual()
 		if _growth >= GROWTH_SECONDS:
 			_mature = true
+			_drop_head()
 			matured.emit()
+		return
+	if _falling:
 		return
 	_maybe_attack(delta)
 	if _head != null and _head.visible:
@@ -224,15 +306,70 @@ func _update_visual() -> void:
 
 	var head_amount: float = clampf((progress - HEAD_START) / (1.0 - HEAD_START), 0.0, 1.0)
 	_head.visible = head_amount > 0.01
-	_head.scale = Vector3.ONE * maxf(head_amount, 0.01)
-	_head.position = Vector3(0.0, height + HEAD_RADIUS * 0.86, 0.0)
+	_head.scale = Vector3.ONE * maxf(head_amount, 0.01) * _head_scale
+	_head.position = Vector3(0.0, height + HEAD_RADIUS * HEAD_SIT, 0.0)
+
+
+## The head swells a little with everything the finished plant drinks.
+func _update_head_scale() -> void:
+	var fed: float = clampf(_charge / LEVEL_WATER, 0.0, 1.0)
+	_head_scale = lerpf(1.0, LEVEL_TWO_HEAD_SCALE, fed)
+	if _head != null:
+		_head.scale = Vector3.ONE * _head_scale
+
+
+## The stalk cannot hold the finished pumpkin: the head topples off it, falls
+## into the dust and squashes the stalk flat underneath.
+func _drop_head() -> void:
+	if _head == null or _head_grounded:
+		return
+	_head_grounded = true
+	var landing := Vector3(0.0, HEAD_RADIUS * HEAD_GROUND_LIFT, 0.0)
+	if not is_inside_tree():
+		_head.position = landing
+		_crush_stalk()
+		return
+	_falling = true
+	var fall := create_tween()
+	fall.set_parallel(true)
+	fall.set_trans(Tween.TRANS_QUAD)
+	fall.set_ease(Tween.EASE_IN)
+	fall.tween_property(_head, "position", landing, FALL_SECONDS)
+	fall.tween_property(_head, "rotation", Vector3(0.32, 0.0, -0.18), FALL_SECONDS)
+	fall.tween_property(_stalk, "scale", Vector3(1.7, 0.06, 1.7), FALL_SECONDS)
+	for leaf: MeshInstance3D in _leaves:
+		fall.tween_property(leaf, "scale", Vector3(0.9, 0.12, 0.9), FALL_SECONDS)
+		fall.tween_property(
+			leaf, "position", Vector3(leaf.position.x * 1.6, 0.02, leaf.position.z), FALL_SECONDS
+		)
+	fall.chain().tween_callback(_on_head_landed)
+
+
+func _crush_stalk() -> void:
+	_stalk.scale = Vector3(1.7, 0.06, 1.7)
+	for leaf: MeshInstance3D in _leaves:
+		leaf.scale = Vector3(0.9, 0.12, 0.9)
+		leaf.position = Vector3(leaf.position.x * 1.6, 0.02, leaf.position.z)
+
+
+func _on_head_landed() -> void:
+	_falling = false
+	if _head == null or not is_instance_valid(_head):
+		return
+	_head.rotation = Vector3.ZERO
+	AudioDirector.play_sfx_3d("land", _head.global_position, get_parent(), -6.0, 4.0)
+	if not is_inside_tree():
+		return
+	var squash := create_tween()
+	squash.tween_property(_head, "scale", Vector3(1.24, 0.84, 1.24) * _head_scale, 0.08)
+	squash.tween_property(_head, "scale", Vector3.ONE * _head_scale, 0.12)
 
 
 func _maybe_attack(delta: float) -> void:
 	_attack_cooldown = maxf(_attack_cooldown - delta, 0.0)
 	if _attack_cooldown > 0.0:
 		return
-	_attack_cooldown = ATTACK_INTERVAL
+	_attack_cooldown = get_attack_interval()
 	_try_attack()
 
 
@@ -242,7 +379,7 @@ func _try_attack() -> AcidBlob:
 		return null
 	var origin: Vector3 = get_head_position()
 	var nearest: Node3D = null
-	var best: float = ATTACK_RADIUS
+	var best: float = get_attack_radius()
 	for node: Node in get_tree().get_nodes_in_group("monsters"):
 		var monster := node as Node3D
 		if monster == null or not is_instance_valid(monster):
@@ -256,10 +393,11 @@ func _try_attack() -> AcidBlob:
 	var parent: Node = get_parent()
 	if parent == null:
 		parent = self
+	AudioDirector.play_sfx_3d("spit", origin, parent, -4.0, 4.0)
 	var blob := AcidBlob.new()
 	blob.name = "AcidBlob"
 	parent.add_child(blob)
-	blob.setup(origin, nearest)
+	blob.setup(origin, nearest, get_spit_speed())
 	return blob
 
 

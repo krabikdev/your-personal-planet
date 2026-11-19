@@ -26,6 +26,12 @@ const SFX_PATHS: Dictionary[String, String] = {
 	"sprout": "res://assets/audio/sprout.wav",
 	"mature": "res://assets/audio/mature.wav",
 	"water_pour": "res://assets/audio/water_pour.wav",
+	"spit": "res://assets/audio/spit.wav",
+	"acid_hit": "res://assets/audio/acid_hit.wav",
+	"death_caterpillar": "res://assets/audio/death_caterpillar.wav",
+	"death_hydralisk": "res://assets/audio/death_hydralisk.wav",
+	"death_ragnos": "res://assets/audio/death_ragnos.wav",
+	"death_zodd": "res://assets/audio/death_zodd.wav",
 }
 const SFX_POOL_SIZE: int = 8
 
