@@ -54,6 +54,10 @@ const DECOR_SCALE: float = 2.0
 ## Level four is a monster the size of a small house, so the scales climb hard.
 const MONSTER_SCALES: Array[float] = [0.95, 1.35, 1.6, 2.05]
 
+## How much punishment each monster takes: a caterpillar folds quickly, Zodd
+## soaks up ten spits from a level one head before he goes down.
+const MONSTER_HEALTH: Array[float] = [20.0, 30.0, 60.0, 100.0]
+
 var kind: int = Kind.GRASS
 var anchor_dir: Vector3 = Vector3.UP
 var monster_level: int = 1
@@ -86,6 +90,8 @@ var _twig_count: int = 0
 var _liana_count: int = 0
 var _mesh_parts: int = 0
 var _monster_name: String = ""
+var _health: float = 0.0
+var _max_health: float = 0.0
 var _platforms: Array[Vector3] = []
 var _platform_radii: Array[float] = []
 var _trunk_radius: float = 0.0
@@ -104,6 +110,8 @@ func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
 	# placed at the final size right away.
 	if kind == Kind.MONSTER:
 		_base_scale = MONSTER_SCALES[monster_level - 1] * _rng.randf_range(0.96, 1.04)
+		_health = max_health_for_level(monster_level)
+		_max_health = _health
 	else:
 		_base_scale = _size_scale * DECOR_SCALE
 	_visual = Node3D.new()
@@ -253,6 +261,11 @@ static func contact_damage_for_level(level: int) -> float:
 	return CONTACT_DAMAGE_STEP * float(clampi(level, 1, 4))
 
 
+## The health pool a monster of this level spawns with.
+static func max_health_for_level(level: int) -> float:
+	return MONSTER_HEALTH[clampi(level, 1, 4) - 1]
+
+
 ## Every monster leaves with a voice of its own, so the duke can hear what the
 ## garden just dissolved.
 static func death_sound_for_level(level: int) -> String:
@@ -273,13 +286,32 @@ func configure_monster(p_planet: Planet, p_boy: Boy, p_level: int) -> void:
 	planet = p_planet
 	boy = p_boy
 	monster_level = clampi(p_level, 1, 4)
+	_health = max_health_for_level(monster_level)
+	_max_health = _health
 	_rng.seed = _seed + 31 * monster_level
 	_enter_wander()
 
 
-## One blob of acid is enough: the monster dissolves with its own dying sound
-## and leaves the garden.
-func hit_by_acid() -> void:
+func get_health() -> float:
+	return _health
+
+
+func get_max_health() -> float:
+	return _max_health
+
+
+func is_alive() -> bool:
+	return _health > 0.0
+
+
+## Acid burns a chunk off the monster. It only dissolves on the blow that
+## empties its health; that last hit plays its own dying sound.
+func hit_by_acid(amount: float = AcidBlob.DEFAULT_DAMAGE) -> void:
+	if _health <= 0.0:
+		return
+	_health = maxf(_health - maxf(amount, 0.0), 0.0)
+	if _health > 0.0:
+		return
 	acid_hit.emit()
 	AudioDirector.play_sfx_3d(
 		death_sound_for_level(monster_level), global_position, get_parent(), -2.0, 6.0

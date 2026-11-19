@@ -474,6 +474,22 @@ def death_ragnos_sfx() -> np.ndarray:
     return normalize(growl + thud + crack, 0.55)
 
 
+def power_up_sfx() -> np.ndarray:
+    """A bright rising flourish when a grown head drinks its way to level two."""
+    d = 2.6
+    t = t_axis(d)
+    out = np.zeros_like(t)
+    for note, at, gain in ((72, 0.0, 0.8), (79, 0.10, 0.9), (84, 0.21, 0.8), (88, 0.34, 0.6)):
+        s = music_box(midi(note), 2.0, 0.2 * gain)
+        start = int(at * SR)
+        n = min(s.size, out.size - start)
+        out[start : start + n] += s[:n]
+    sweep = np.sin(2.0 * math.pi * np.cumsum(np.linspace(280.0, 900.0, t.size)) / SR)
+    sweep *= np.exp(-((t - 0.3) / 0.2) ** 2) * 0.08
+    shimmer = highpass(rng.standard_normal(t.size), 6200.0) * np.exp(-t / 0.6) * 0.06
+    return normalize(out + sweep + shimmer, 0.42)
+
+
 def death_zodd_sfx() -> np.ndarray:
     """The huge minotaur's last bellow, a long rumble and falling rubble."""
     d = 2.8
@@ -531,6 +547,7 @@ def main() -> None:
         "death_hydralisk": death_hydralisk_sfx(),
         "death_ragnos": death_ragnos_sfx(),
         "death_zodd": death_zodd_sfx(),
+        "power_up": power_up_sfx(),
     }
     for name, data in sfx.items():
         path = os.path.join(OUT, name + ".wav")

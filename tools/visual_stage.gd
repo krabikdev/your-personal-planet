@@ -432,6 +432,40 @@ func _setup() -> void:
 					]
 				)
 			)
+		"acid":
+			var a_planet: Planet = game.get_node("Planet") as Planet
+			var a_player: Boy = game.get_node("Player") as Boy
+			var a_spawner: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+			a_planet.apply_radius(30.0)
+			a_player.snap_to_surface()
+			await get_tree().process_frame
+			var a_up: Vector3 = a_player.get_up()
+			var a_forward: Vector3 = -a_player.global_transform.basis.z
+			var a_side: Vector3 = a_forward.cross(a_up).normalized()
+			var a_spot: Vector3 = a_planet.get_center() + a_up * a_planet.radius
+			var a_plant: PumpkinPlant = game.get_garden().pour(a_spot, 2.5)
+			a_plant.water(PumpkinPlant.LEVEL_WATER)
+			var a_monster: DecorProp = a_spawner.debug_spawn_monster(Vector3.UP, 1)
+			a_monster.set_process(false)
+			a_monster.anchor_dir = (
+				(a_plant.get_head_position() + a_side * 8.0 - a_planet.get_center()).normalized()
+			)
+			a_monster._update_transform(a_side)
+			var a_camera := Camera3D.new()
+			a_camera.name = "AcidCamera"
+			game.add_child(a_camera)
+			a_camera.fov = 55.0
+			a_camera.make_current()
+			var a_mid: Vector3 = a_plant.get_head_position() + a_side * 4.0
+			a_camera.global_position = a_mid - a_forward * 9.0 + a_up * 3.2
+			a_camera.look_at(a_mid + a_up * 0.2, a_up)
+			await get_tree().create_timer(3.4).timeout
+			print(
+				(
+					"ACID health=%.1f speed=%.1f arc=%.2f"
+					% [a_monster.get_health(), a_plant.get_spit_speed(), AcidBlob.ARC_HEIGHT]
+				)
+			)
 		"keyjump":
 			await get_tree().create_timer(0.5).timeout
 			var press := InputEventKey.new()

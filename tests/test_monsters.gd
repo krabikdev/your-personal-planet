@@ -61,6 +61,49 @@ func test_each_monster_has_its_own_reach_and_bite() -> void:
 	assert_eq(DecorProp.contact_damage_for_level(4), 4.0)
 
 
+func test_each_monster_has_its_own_health_pool() -> void:
+	assert_eq(DecorProp.max_health_for_level(1), 20.0, "the caterpillar is flimsy")
+	assert_eq(DecorProp.max_health_for_level(2), 30.0)
+	assert_eq(DecorProp.max_health_for_level(3), 60.0)
+	assert_eq(DecorProp.max_health_for_level(4), 100.0, "Zodd takes a dozen spits")
+
+
+func test_a_spawned_monster_starts_at_full_health() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+	var spawner: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+	for level: int in [1, 2, 3, 4]:
+		var monster: DecorProp = spawner.debug_spawn_monster(Vector3.UP, level)
+		assert_almost_eq(
+			monster.get_health(),
+			DecorProp.max_health_for_level(level),
+			0.001,
+			"level %d spawns at full health" % level,
+		)
+		assert_almost_eq(monster.get_max_health(), monster.get_health(), 0.001)
+
+
+func test_acid_has_to_chew_through_a_big_monster() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(3)
+	var spawner: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+	var monster: DecorProp = spawner.debug_spawn_monster(Vector3.UP, 4)
+	assert_true(monster.is_alive())
+
+	monster.hit_by_acid(15.0)
+	assert_almost_eq(monster.get_health(), 85.0, 0.001, "a level two blob burns fifteen")
+	assert_false(monster.is_queued_for_deletion(), "eighty-five health is still standing")
+
+	for _i: int in 5:
+		monster.hit_by_acid(15.0)
+	assert_almost_eq(monster.get_health(), 10.0, 0.001)
+	assert_true(monster.is_alive(), "ten health left is still alive")
+
+	monster.hit_by_acid(15.0)
+	assert_false(monster.is_alive(), "the last blow empties the pool")
+	assert_true(monster.is_queued_for_deletion(), "and Zodd finally goes down")
+
+
 func test_a_monster_chases_the_duke_inside_its_reach() -> void:
 	var game: Game = _make_game()
 	await wait_physics_frames(3)

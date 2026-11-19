@@ -28,6 +28,7 @@ const SFX_PATHS: Dictionary[String, String] = {
 	"water_pour": "res://assets/audio/water_pour.wav",
 	"spit": "res://assets/audio/spit.wav",
 	"acid_hit": "res://assets/audio/acid_hit.wav",
+	"power_up": "res://assets/audio/power_up.wav",
 	"death_caterpillar": "res://assets/audio/death_caterpillar.wav",
 	"death_hydralisk": "res://assets/audio/death_hydralisk.wav",
 	"death_ragnos": "res://assets/audio/death_ragnos.wav",
