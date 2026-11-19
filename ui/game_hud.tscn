@@ -212,7 +212,7 @@ layout_mode = 2
 mouse_filter = 2
 theme_type_variation = &"SmallLabel"
 theme_override_colors/font_color = Color(0.95, 0.9, 0.82, 0.85)
-text = "WASD  рух     ·     Shift  біг     ·     Пробіл  стрибок     ·     ПКМ  кілок     ·     ЛКМ  сачок     ·     Q  небо     ·     I  сумка"
+text = "WASD  рух     ·     Shift  біг     ·     Пробіл  стрибок     ·     ПКМ  кілок     ·     ЛКМ  сачок     ·     Q  небо     ·     E  сумка"
 horizontal_alignment = 1
 autowrap_mode = 3
 
@@ -279,5 +279,5 @@ autowrap_mode = 3
 layout_mode = 2
 mouse_filter = 2
 theme_type_variation = &"AccentLabel"
-text = "WASD  рух     ·     Пробіл (тримай — вище)  стрибок     ·     I  сумка"
+text = "WASD  рух     ·     Пробіл (тримай — вище)  стрибок     ·     E  сумка"
 horizontal_alignment = 1

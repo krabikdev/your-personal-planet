@@ -109,7 +109,7 @@ layout_mode = 2
 [node name="Footer" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1516722843]
 layout_mode = 2
 theme_type_variation = &"SmallLabel"
-text = "WASD  рух     ·     Shift  біг     ·     Пробіл  стрибок     ·     ПКМ  кілок     ·     ЛКМ  сачок     ·     I  сумка     ·     Мишка  камера"
+text = "WASD  рух     ·     Shift  біг     ·     Пробіл  стрибок     ·     ПКМ  кілок     ·     ЛКМ  сачок     ·     E  сумка     ·     Мишка  камера"
 horizontal_alignment = 1
 autowrap_mode = 3
 

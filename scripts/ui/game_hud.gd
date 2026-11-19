@@ -49,7 +49,7 @@ func set_planet_stats(radius: float, gravity: float, jump_height: float, safe: b
 
 
 func set_inventory_count(count: int) -> void:
-	_inventory_button.text = "I   ·   Сумка  %d" % count
+	_inventory_button.text = "E   ·   Сумка  %d" % count
 
 
 ## The can's own gauge: it is hidden until the boy has actually found the can.
@@ -122,6 +122,6 @@ func fade_controls() -> void:
 func _populate_controls() -> void:
 	_controls_label.text = (
 		"WASD  рух     ·     Shift  біг     ·     Пробіл  стрибок (тримай — вище)     ·     "
-		+ "ПКМ  кілок     ·     ЛКМ  сачок / полив     ·     Q  небо     ·     I  сумка"
+		+ "ПКМ  кілок     ·     ЛКМ  сачок / полив     ·     Q  небо     ·     E  сумка"
 		+ "     ·     Миша  камера"
 	)

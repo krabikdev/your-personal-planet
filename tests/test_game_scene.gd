@@ -446,6 +446,34 @@ func test_the_sky_view_action_is_mapped_to_q() -> void:
 	assert_true(found, "holding Q should lift the camera to the sky")
 
 
+func test_the_bag_action_is_mapped_to_e() -> void:
+	var on_e: bool = false
+	var on_i: bool = false
+	for event: InputEvent in InputMap.action_get_events("inventory"):
+		if event is InputEventKey:
+			var key := event as InputEventKey
+			if key.physical_keycode == KEY_E:
+				on_e = true
+			if key.physical_keycode == KEY_I:
+				on_i = true
+	assert_true(on_e, "pressing E should open the bag")
+	assert_false(on_i, "I is no longer the bag key")
+
+
+func test_the_hud_names_e_as_the_bag_key() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var button: Button = game._hud.get_node("%InventoryButton") as Button
+	var controls: Label = game._hud.get_node("%ControlsLabel") as Label
+	assert_string_contains(button.text, "E")
+	assert_false(button.text.contains("I"), "the button must not advertise the old key")
+	assert_string_contains(controls.text, "E  сумка")
+	assert_false(controls.text.contains("I  сумка"), "the hint follows the new key")
+
+
 func test_holding_q_looks_along_the_duke_gaze_from_his_head() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game

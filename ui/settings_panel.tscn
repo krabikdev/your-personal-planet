@@ -132,7 +132,7 @@ layout_mode = 2
 theme_type_variation = &"SmallLabel"
 text = "WASD — рух     ·     Shift — біг     ·     Пробіл — стрибок
 ПКМ — забити кілок, повторне натискання — зняти його     ·     ЛКМ — замахнутися сачком
-I — сумка     ·     рухай мишкою — поворот камери"
+E — сумка     ·     рухай мишкою — поворот камери"
 autowrap_mode = 3
 
 [node name="BackButton" type="Button" parent="Overlay/Margin/Center/Panel/PanelMargin/VBox"]
