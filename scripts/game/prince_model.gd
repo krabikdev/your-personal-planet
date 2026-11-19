@@ -586,6 +586,8 @@ func _update_pose(delta: float) -> void:
 	if _last_forward.length_squared() > 0.5 and delta > 0.0:
 		turn = _last_forward.signed_angle_to(forward, up) / delta
 	_last_forward = forward
+	if _sprigs != null:
+		_sprigs.set_turn(turn)
 	_spin_speed = lerpf(
 		_spin_speed, SMEAR_SPIN * _smear_amount, 1.0 - exp(-SMEAR_SPIN_RAMP * delta)
 	)

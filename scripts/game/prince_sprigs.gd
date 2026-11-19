@@ -13,6 +13,12 @@ const VINE_LAG: float = 0.3
 const VINE_SAG: float = 1.6
 const VINE_SWAY: float = 14.0
 const VINE_DIP: float = 9.0
+const STEM_SWAY_SHARE: float = 0.4
+const IDLE_SWAY: float = 2.5
+const IDLE_RATE: float = 2.2
+const TURN_GAIN: float = 0.06
+const TURN_MAX: float = 0.18
+const TURN_RESPONSE: float = 8.0
 
 const STEM_STIFFNESS: float = 260.0
 const STEM_DRAG: float = 9.0
@@ -35,6 +41,9 @@ var _drag: PackedFloat32Array = PackedFloat32Array()
 var _sag: PackedFloat32Array = PackedFloat32Array()
 var _activity: float = 0.0
 var _phase: float = 0.0
+var _turn: float = 0.0
+var _turn_target: float = 0.0
+var _time: float = 0.0
 var _built: bool = false
 
 
@@ -52,6 +61,12 @@ func is_active() -> bool:
 func set_gait(activity: float, phase: float) -> void:
 	_activity = clampf(activity, 0.0, 1.0)
 	_phase = phase
+
+
+## How fast the body is spinning, so the tips can fling outward in turns.
+## The angle eases toward the target instead of snapping with every step.
+func set_turn(rate: float) -> void:
+	_turn_target = clampf(rate * TURN_GAIN, -TURN_MAX, TURN_MAX)
 
 
 func _build_chain(root: StringName) -> void:
@@ -132,6 +147,8 @@ func _process(delta: float) -> void:
 	if not _built or delta <= 0.0:
 		return
 	var step: float = minf(delta, MAX_STEP)
+	_time += step
+	_turn = lerpf(_turn, _turn_target, 1.0 - exp(-TURN_RESPONSE * step))
 	for chain: int in _chains.size():
 		_simulate(chain, step)
 		_apply(chain)
@@ -147,13 +164,27 @@ func _carry(chain: int) -> Transform3D:
 	)
 
 
+## The rest pose, rocked by the walk: each side swings against its own
+## footfall, the stem bounces along at a share of it, turns roll the tips
+## outward, and standing still leaves a slow idle breath so nothing hangs dead.
 func _sway(chain: int, world: Transform3D) -> Basis:
-	if _is_stem(_skeleton.get_bone_name(_chains[chain][0])) or _activity <= 0.0:
-		return Basis()
+	var root_name: StringName = _skeleton.get_bone_name(_chains[chain][0])
+	var stem: bool = _is_stem(root_name)
+	var share: float = STEM_SWAY_SHARE if stem else 1.0
 	var step: float = _phase * 2.0
-	var fore_aft := Basis(world.basis.x.normalized(), deg_to_rad(sin(step) * VINE_SWAY * _activity))
-	var bounce := Basis(world.basis.z.normalized(), deg_to_rad(cos(step) * VINE_DIP * _activity))
-	return bounce * fore_aft
+	if not stem and String(root_name).contains("_R"):
+		step += PI
+	var fore: float = sin(step) * VINE_SWAY * _activity
+	var dip: float = cos(step) * VINE_DIP * _activity
+	if _activity <= 0.01:
+		fore = sin(_time * IDLE_RATE + float(chain) * 2.1) * IDLE_SWAY
+		dip = cos(_time * IDLE_RATE * 0.83 + float(chain)) * IDLE_SWAY * 0.6
+	var x_axis: Vector3 = world.basis.x.normalized()
+	var z_axis: Vector3 = world.basis.z.normalized()
+	var fore_aft := Basis(x_axis, deg_to_rad(fore))
+	var bounce := Basis(z_axis, deg_to_rad(dip))
+	var roll := Basis(-z_axis, _turn * share)
+	return roll * bounce * fore_aft
 
 
 func _simulate(chain: int, step: float) -> void:
