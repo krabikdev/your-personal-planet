@@ -446,7 +446,7 @@ func test_the_sky_view_action_is_mapped_to_q() -> void:
 	assert_true(found, "holding Q should lift the camera to the sky")
 
 
-func test_holding_q_points_the_camera_straight_up_from_the_duke() -> void:
+func test_holding_q_looks_along_the_duke_gaze_from_his_head() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game
 	add_child_autofree(game)
@@ -460,14 +460,52 @@ func test_holding_q_points_the_camera_straight_up_from_the_duke() -> void:
 	var camera: Camera3D = rig.get_camera()
 	var look: Vector3 = -camera.global_transform.basis.z
 	var up: Vector3 = player.get_up()
+	var heading: Vector3 = rig.get_tangent_forward(up)
 	Input.action_release("sky_view")
-	assert_gt(look.dot(up), 0.95, "the camera should look straight up into space")
+	assert_lt(
+		absf(look.dot(up)), 0.3, "the view should start level with the horizon, not at the zenith"
+	)
+	assert_gt(look.dot(heading), 0.9, "the camera should look along the duke's gaze")
 	assert_lt(
 		camera.global_position.distance_to(player.global_position),
 		2.6,
 		"the camera should sit right at the duke's head"
 	)
 	assert_false(player.is_net_active(), "looking up should not swing the net")
+
+
+func test_the_sky_sweep_never_flips_the_world() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_process_frames(1)
+
+	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
+	var camera: Camera3D = rig.get_camera()
+	Input.action_press("sky_view")
+	await wait_process_frames(20)
+
+	var previous: Vector3 = camera.global_transform.basis.y
+	for _i: int in 24:
+		var upward := InputEventMouseMotion.new()
+		upward.relative = Vector2(0.0, -100.0)
+		rig._unhandled_input(upward)
+		await wait_process_frames(1)
+		var current: Vector3 = camera.global_transform.basis.y
+		assert_gt(current.dot(previous), 0.7, "the sky view must roll smoothly over the top")
+		previous = current
+	assert_almost_eq(rig.get_sky_pitch(), PI * 0.5, 0.02, "the mouse still reaches the zenith")
+
+	for _i: int in 26:
+		var downward := InputEventMouseMotion.new()
+		downward.relative = Vector2(0.0, 100.0)
+		rig._unhandled_input(downward)
+		await wait_process_frames(1)
+		var current: Vector3 = camera.global_transform.basis.y
+		assert_gt(current.dot(previous), 0.7, "and down to the duke's feet without a snap")
+		previous = current
+	assert_almost_eq(rig.get_sky_pitch(), -PI * 0.5, 0.02, "the mouse still reaches the ground")
+	Input.action_release("sky_view")
 
 
 func test_the_sky_camera_follows_the_mouse_in_every_direction() -> void:

@@ -1,10 +1,12 @@
-class_name DecorProp
+class_name DecorProp  # gdlint:ignore=max-public-methods
 extends Node3D
 
-## One thing that shows up on the far side of the planet: a tuft of grass, a
-## bush, a young tree, a full tree, a big tree, or a wandering monster. Every
-## prop is built from primitives, so the game needs no new assets. A prop never
-## changes its own size: when the planet grows it only rides the surface.
+## One thing that shows up on the far side of the planet: a tuft of dry grass, a
+## tumbleweed, a bare young tree, a larger one, a huge oak whose branch tips are
+## flat platforms, or a wandering monster. Every prop is built from primitives
+## and merged into a few meshes, so detail costs geometry rather than draw calls.
+## A prop never changes its own size: when the planet grows it only rides the
+## surface, and a cluster keeps its real spacing.
 
 signal acid_hit
 
@@ -25,12 +27,44 @@ const REST_TURN_EVERY_MAX: float = 2.4
 const AGGRO_STEP: float = 5.0
 const CONTACT_DAMAGE_STEP: float = 1.0
 
+## Dry planet shades, pale straw down to a gloomy brown. There is no green here
+## on purpose: everything that grows is dead grass and dead wood.
+const DRY_COLORS: Array[Color] = [
+	Color("e6d29a"),
+	Color("dbc389"),
+	Color("cdb277"),
+	Color("bda066"),
+	Color("ab8d58"),
+	Color("987a4c"),
+	Color("856a43"),
+	Color("715839"),
+	Color("5f4a31"),
+]
+const BARK_COLORS: Array[Color] = [
+	Color("6b533c"), Color("5d4732"), Color("523e2c"), Color("473628")
+]
+const LIANA_COLORS: Array[Color] = [
+	Color("dcc681"), Color("cfb56b"), Color("c2a65e"), Color("b39752")
+]
+const SCALE_MIN: float = 0.9
+const SCALE_MAX: float = 1.2
+## Level four is a monster the size of a small house, so the scales climb hard.
+const MONSTER_SCALES: Array[float] = [0.95, 1.35, 1.6, 2.05]
+
 var kind: int = Kind.GRASS
 var anchor_dir: Vector3 = Vector3.UP
 var monster_level: int = 1
+## Which of the several shapes this prop picked.
+var variant: int = 0
 
 var planet: Planet
 var boy: Boy
+
+## Where the prop was born: a direction on the sphere plus an offset in real
+## metres. Keeping the offset in metres is what stops a cluster from spreading
+## across half a growing planet.
+var spawn_base: Vector3 = Vector3.UP
+var spawn_offset: Vector3 = Vector3.ZERO
 
 var _seed: int = 0
 var _rng: RandomNumberGenerator
@@ -44,6 +78,13 @@ var _idle_timer: float = 1.0
 var _idle_yaw: float = 0.0
 var _spin: float = 0.0
 var _base_scale: float = 1.0
+var _size_scale: float = 1.0
+var _twig_count: int = 0
+var _liana_count: int = 0
+var _mesh_parts: int = 0
+var _monster_name: String = ""
+var _platforms: Array[Vector3] = []
+var _platform_radii: Array[float] = []
 
 
 func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
@@ -52,6 +93,8 @@ func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
 	monster_level = clampi(p_level, 1, 4)
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = _seed
+	variant = _rng.randi_range(0, 2)
+	_size_scale = _rng.randf_range(SCALE_MIN, SCALE_MAX)
 	_visual = Node3D.new()
 	_visual.name = "Visual"
 	add_child(_visual)
@@ -74,7 +117,9 @@ func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
 	set_process(kind == Kind.MONSTER)
 	if kind == Kind.MONSTER:
 		add_to_group("monsters")
-		_base_scale = 0.78 + 0.16 * float(monster_level)
+		_base_scale = MONSTER_SCALES[monster_level - 1] * _rng.randf_range(0.96, 1.04)
+	else:
+		_base_scale = _size_scale
 	# A soft pop-in makes a new arrival readable without moving the prop itself.
 	_visual.scale = Vector3.ONE * 0.12
 	var pop := create_tween()
@@ -85,6 +130,74 @@ func setup(p_kind: int, p_seed: int, p_level: int = 1) -> void:
 
 func is_monster() -> bool:
 	return kind == Kind.MONSTER
+
+
+## The random size every decoration rolls: 90% to 120%.
+func get_size_scale() -> float:
+	return _size_scale
+
+
+func get_visual_scale() -> float:
+	return _base_scale
+
+
+func get_twig_count() -> int:
+	return _twig_count
+
+
+func get_liana_count() -> int:
+	return _liana_count
+
+
+func get_platform_count() -> int:
+	return _platforms.size()
+
+
+func get_platform_heights() -> Array[float]:
+	var heights: Array[float] = []
+	for platform: Vector3 in _platforms:
+		heights.append(platform.y)
+	return heights
+
+
+func get_platform_collider() -> StaticBody3D:
+	return get_node_or_null("Platforms") as StaticBody3D
+
+
+## The world position of a platform's centre, for tests and for anyone who has
+## to know where to jump.
+func get_platform_point(index: int) -> Vector3:
+	if index < 0 or index >= _platforms.size():
+		return global_position
+	return global_transform * (_platforms[index] * _size_scale)
+
+
+func get_monster_name() -> String:
+	return _monster_name
+
+
+func get_mesh_parts() -> int:
+	return _mesh_parts
+
+
+## Remembers the spot the spawner picked: a base direction and a real-world
+## offset across the surface.
+func set_spawn_spot(base: Vector3, offset: Vector3) -> void:
+	spawn_base = base.normalized()
+	spawn_offset = offset - spawn_base * offset.dot(spawn_base)
+	refresh_anchor()
+
+
+## Rebuilds the surface direction from the metric offset. The offset stays the
+## same size when the planet grows, so a cluster of bushes does not stretch out
+## into empty space on a huge planet.
+func refresh_anchor() -> void:
+	var length: float = spawn_offset.length()
+	if length < 0.0001 or planet == null:
+		anchor_dir = spawn_base
+		return
+	var angle: float = length / maxf(planet.radius, 0.001)
+	anchor_dir = (spawn_base * cos(angle) + (spawn_offset / length) * sin(angle)).normalized()
 
 
 ## Where the monster is in its day: wandering, resting, or running at the boy.
@@ -98,6 +211,12 @@ func get_aggro_radius() -> float:
 
 func get_contact_damage() -> float:
 	return contact_damage_for_level(monster_level)
+
+
+## Bigger bodies bite from further out, otherwise a huge monster would have to
+## stand inside the duke before it counts as touching him.
+func get_contact_radius() -> float:
+	return CONTACT_RADIUS + 0.25 * maxf(_base_scale - 1.0, 0.0)
 
 
 ## Monsters get meaner in steps: 5/10/15/20 metres and 1/2/3/4 health a second.
@@ -171,7 +290,7 @@ func _advance(delta: float) -> void:
 			_state = State.CHASE
 			_spin = 0.0
 		_body.rotation.y = 0.0
-		if distance > CONTACT_RADIUS:
+		if distance > get_contact_radius():
 			var toward: Vector3 = to_boy - up * to_boy.dot(up)
 			if toward.length_squared() > 0.0001:
 				var speed: float = CHASE_SPEED + CHASE_SPEED_PER_LEVEL * float(monster_level)
@@ -262,220 +381,426 @@ func _update_transform(forward: Vector3) -> void:
 	global_transform = Transform3D(Basis(right, up, -tangent), _world_position())
 
 
+# ------------------------------------------------------------------ the plants
+
+
+## A tuft of dead straw: thin tapered blades that lean out of the dust.
 func _build_grass() -> void:
-	var blades: int = _rng.randi_range(5, 8)
+	var mesher := PropMesher.new()
+	var straw: StandardMaterial3D = _dry_material()
+	var pale: StandardMaterial3D = _dry_material()
+	var blades: int = _rng.randi_range(6, 10)
 	for i: int in blades:
-		var height: float = _rng.randf_range(0.16, 0.34)
+		var height: float = _rng.randf_range(0.24, 0.5)
 		var blade := CylinderMesh.new()
-		blade.top_radius = 0.0015
-		blade.bottom_radius = _rng.randf_range(0.005, 0.013)
+		blade.top_radius = 0.002
+		blade.bottom_radius = _rng.randf_range(0.006, 0.014)
 		blade.height = height
 		blade.radial_segments = 4
 		blade.rings = 1
-		var green := Color("6f9a5a").lerp(Color("a8c47a"), _rng.randf())
-		var node: MeshInstance3D = _add_mesh(
-			blade, _material(green, 0.9), Vector3.ZERO, Vector3.ZERO, false
-		)
-		var spread: float = _rng.randf_range(0.0, 0.07)
 		var around: float = _rng.randf_range(0.0, TAU)
-		node.position = Vector3(cos(around), 0.0, sin(around)) * spread
-		node.position.y = height * 0.5
-		node.rotation_degrees = Vector3(
-			_rng.randf_range(-16.0, 16.0),
-			_rng.randf_range(0.0, 360.0),
-			_rng.randf_range(-16.0, 16.0)
+		var spread: float = _rng.randf_range(0.0, 0.09)
+		var lean := (
+			Vector3(_rng.randf_range(-0.3, 0.3), 1.0, _rng.randf_range(-0.3, 0.3)).normalized()
 		)
+		var base := Vector3(cos(around), 0.0, sin(around)) * spread
+		mesher.add_along(blade, base + lean * height * 0.5, lean, straw if i % 2 == 0 else pale)
+	# A few dry seed heads so the tuft is not just a fan of sticks.
+	for i: int in _rng.randi_range(1, 3):
+		var head := SphereMesh.new()
+		head.radius = _rng.randf_range(0.014, 0.024)
+		head.height = head.radius * 2.4
+		head.radial_segments = 8
+		head.rings = 4
+		var around: float = _rng.randf_range(0.0, TAU)
+		var pos := Vector3(cos(around), 0.0, sin(around)) * _rng.randf_range(0.02, 0.1)
+		pos.y = _rng.randf_range(0.2, 0.4)
+		mesher.add_at(head, pos, pale, Vector3(0.0, 0.0, _rng.randf_range(-20.0, 20.0)))
+	_mesh_parts = mesher.get_part_count()
+	mesher.commit(_body)
 
 
+## A tumbleweed that never rolls away: a loose ball of dry twigs.
 func _build_bush() -> void:
-	var clusters: int = _rng.randi_range(3, 4)
-	for i: int in clusters:
-		var blob := SphereMesh.new()
-		blob.radius = _rng.randf_range(0.16, 0.24)
-		blob.height = blob.radius * 1.7
-		blob.radial_segments = 12
-		blob.rings = 6
-		var green := Color("4f7a4c").lerp(Color("7fa25f"), _rng.randf())
-		var node: MeshInstance3D = _add_mesh(blob, _material(green, 0.88), Vector3.ZERO)
-		var around: float = TAU * float(i) / float(clusters) + _rng.randf_range(-0.4, 0.4)
-		node.position = Vector3(cos(around), 0.0, sin(around)) * _rng.randf_range(0.02, 0.14)
-		node.position.y = blob.radius * 0.85 + _rng.randf_range(0.0, 0.12)
-	# A couple of tiny berries so the bush is not a green blob.
-	for i: int in 3:
-		var berry := SphereMesh.new()
-		berry.radius = 0.024
-		berry.height = 0.048
-		berry.radial_segments = 6
-		berry.rings = 3
-		var node: MeshInstance3D = _add_mesh(berry, _material(Color("b0555a"), 0.6), Vector3.ZERO)
-		var around: float = _rng.randf_range(0.0, TAU)
-		node.position = Vector3(cos(around), 0.0, sin(around)) * 0.16
-		node.position.y = _rng.randf_range(0.18, 0.34)
+	var mesher := PropMesher.new()
+	var twig: StandardMaterial3D = _dry_material()
+	var pale: StandardMaterial3D = _dry_material()
+	var ball: float = _rng.randf_range(0.32, 0.42)
+	var center := Vector3(0.0, ball * 0.92, 0.0)
+	var count: int = _rng.randi_range(38, 52)
+	for i: int in count:
+		var normal: Vector3 = _random_unit()
+		var start: Vector3 = center + normal * ball * _rng.randf_range(0.25, 0.98)
+		var across: Vector3 = _random_unit().cross(normal)
+		if across.length_squared() < 0.001:
+			across = Vector3.RIGHT
+		var direction := (across.normalized() + normal * _rng.randf_range(-0.35, 0.5)).normalized()
+		var length: float = _rng.randf_range(0.18, 0.38)
+		var stick := CylinderMesh.new()
+		stick.top_radius = 0.004
+		stick.bottom_radius = 0.011
+		stick.height = length
+		stick.radial_segments = 4
+		stick.rings = 1
+		var material: StandardMaterial3D = twig if i % 3 else pale
+		mesher.add_along(stick, start + direction * length * 0.5, direction, material)
+		# Every other twig forks near its far end.
+		if i % 2 == 0:
+			var tip: Vector3 = start + direction * length
+			var fork := (direction + _random_unit() * 0.8).normalized()
+			var short: CylinderMesh = stick.duplicate() as CylinderMesh
+			short.height = length * 0.55
+			mesher.add_along(short, tip + fork * length * 0.25, fork, material)
+	_twig_count = count
+	_mesh_parts = mesher.get_part_count()
+	mesher.commit(_body)
 
 
 func _build_sapling() -> void:
-	_trunk(0.55, 0.026, 0.019)
-	for i: int in 3:
-		_leaf_cluster(
-			_rng.randf_range(0.45, 0.68), _rng.randf_range(0.12, 0.18), Color("6d975b"), 10
-		)
+	_build_dry_oak(
+		_rng.randf_range(0.95, 1.2), _rng.randf_range(0.05, 0.07), 5, _rng.randi_range(6, 9)
+	)
 
 
 func _build_tree() -> void:
-	_trunk(1.05, 0.075, 0.045)
-	for i: int in 4:
-		_leaf_cluster(
-			_rng.randf_range(0.78, 1.22), _rng.randf_range(0.26, 0.38), Color("547f4a"), 12
-		)
-	# A couple of branches leaves no doubt it is a tree.
-	var branch := CylinderMesh.new()
-	branch.top_radius = 0.018
-	branch.bottom_radius = 0.032
-	branch.height = 0.52
-	branch.radial_segments = 6
-	branch.rings = 1
-	var branch_node: MeshInstance3D = _add_mesh(
-		branch, _material(Color("6a5140"), 0.95), Vector3.ZERO
+	_build_dry_oak(
+		_rng.randf_range(2.0, 2.6), _rng.randf_range(0.12, 0.16), 6, _rng.randi_range(9, 13)
 	)
-	branch_node.position = Vector3(0.16, 0.78, 0.0)
-	branch_node.rotation_degrees = Vector3(0.0, 0.0, -34.0)
 
 
+## A bare oak: a crooked trunk, a handful of forked branches, and pale yellow
+## lianas hanging off the tips. Three variants change the silhouette.
+func _build_dry_oak(height: float, girth: float, branches: int, lianas: int) -> void:
+	var mesher := PropMesher.new()
+	var bark: StandardMaterial3D = _bark_material()
+	var bark_dark: StandardMaterial3D = _bark_material(true)
+	var vine: StandardMaterial3D = _liana_material()
+	var tips: Array[Vector3] = []
+
+	var lean: float = 0.16 if variant == 1 else 0.07
+	var trunk_top := Vector3(
+		_rng.randf_range(-lean, lean), height * 0.64, _rng.randf_range(-lean, lean)
+	)
+	_branch(mesher, Vector3.ZERO, trunk_top, girth, girth * 0.42, bark)
+	# Roots splaying into the dust.
+	for i: int in 3:
+		var around: float = TAU * float(i) / 3.0 + _rng.randf_range(-0.3, 0.3)
+		var out := Vector3(cos(around), 0.0, sin(around))
+		_branch(
+			mesher,
+			Vector3(0.0, girth * 1.2, 0.0),
+			out * girth * 3.2 + Vector3(0.0, -girth * 0.9, 0.0),
+			girth * 0.6,
+			girth * 0.18,
+			bark_dark,
+		)
+
+	# One leader, or a fork into two on the third variant.
+	var leaders: int = 2 if variant == 2 else 1
+	for leader: int in leaders:
+		var base: Vector3 = trunk_top
+		if leaders > 1:
+			base += Vector3(0.09 * (1.0 if leader == 0 else -1.0), 0.0, 0.0)
+		var crest: Vector3 = (
+			base
+			+ Vector3(_rng.randf_range(-0.12, 0.12), height * 0.22, _rng.randf_range(-0.12, 0.12))
+		)
+		_branch(mesher, base, crest, girth * 0.42, girth * 0.18, bark)
+		tips.append(crest)
+		var spread: float = 0.75 if variant == 0 else 1.15
+		for i: int in branches:
+			# Branches leave at every height of the leader, not all from the top,
+			# so the crown has the layered look of a real oak.
+			var attach: Vector3 = base.lerp(crest, _rng.randf_range(0.05, 0.95))
+			var around: float = TAU * float(i) / float(branches) + _rng.randf_range(-0.5, 0.5)
+			var reach: float = height * _rng.randf_range(0.16, 0.3) * spread
+			var tip := (
+				attach
+				+ Vector3(
+					cos(around) * reach, reach * _rng.randf_range(0.5, 1.1), sin(around) * reach
+				)
+			)
+			var thickness: float = lerpf(
+				girth * 0.42, girth * 0.14, attach.distance_to(base) / maxf(height, 0.01)
+			)
+			_branch(mesher, attach, tip, thickness, girth * 0.07, bark)
+			tips.append(tip)
+			# Each bough forks twice, which is what makes a bare tree read.
+			for fork_index: int in 2:
+				var fork_side: float = -1.0 if fork_index == 0 else 1.0
+				var fork := (
+					(
+						Vector3(cos(around), 0.85, sin(around)) * 0.6
+						+ Vector3(-sin(around), 0.2, cos(around)) * 0.55 * fork_side
+						+ _random_unit() * 0.35
+					)
+					. normalized()
+				)
+				var fork_tip: Vector3 = tip + fork * reach * _rng.randf_range(0.4, 0.7)
+				_branch(mesher, tip, fork_tip, girth * 0.07, girth * 0.022, bark_dark)
+				tips.append(fork_tip)
+
+	# Lianas hang from the fork tips all around the crown.
+	for i: int in lianas:
+		var tip: Vector3 = tips[_rng.randi_range(0, tips.size() - 1)]
+		var length: float = minf(_rng.randf_range(0.3, 0.72) * height, tip.y - 0.2)
+		if length > 0.12:
+			_liana(mesher, tip, length, vine)
+	_mesh_parts = mesher.get_part_count()
+	mesher.commit(_body)
+
+
+## The huge oak: branch tips flatten into amoeba-shaped platforms at climbing
+## heights, with yellow lianas hanging off their rims.
 func _build_big_tree() -> void:
-	_trunk(1.9, 0.15, 0.09)
-	for i: int in 6:
-		_leaf_cluster(_rng.randf_range(1.4, 2.2), _rng.randf_range(0.5, 0.72), Color("416b42"), 14)
-	var bough := CylinderMesh.new()
-	bough.top_radius = 0.03
-	bough.bottom_radius = 0.065
-	bough.height = 0.9
-	bough.radial_segments = 6
-	bough.rings = 1
-	for side: float in [-1.0, 1.0]:
-		var node: MeshInstance3D = _add_mesh(bough, _material(Color("5d4636"), 0.95), Vector3.ZERO)
-		node.position = Vector3(0.26 * side, 1.42, 0.0)
-		node.rotation_degrees = Vector3(0.0, 0.0, -38.0 * side)
+	var mesher := PropMesher.new()
+	var bark: StandardMaterial3D = _bark_material()
+	var bark_dark: StandardMaterial3D = _bark_material(true)
+	var vine: StandardMaterial3D = _liana_material()
+	var pad: StandardMaterial3D = _liana_material()
+	var pad_alt: StandardMaterial3D = _liana_material()
+	var height: float = 3.6
+	var girth: float = _rng.randf_range(0.4, 0.48)
+	var trunk_top := Vector3(
+		_rng.randf_range(-0.1, 0.1), height * 0.62, _rng.randf_range(-0.1, 0.1)
+	)
+	_branch(mesher, Vector3.ZERO, trunk_top, girth, girth * 0.55, bark)
+	for i: int in 4:
+		var around: float = TAU * float(i) / 4.0 + _rng.randf_range(-0.25, 0.25)
+		var out := Vector3(cos(around), 0.0, sin(around))
+		_branch(
+			mesher,
+			Vector3(0.0, girth * 1.1, 0.0),
+			out * girth * 2.8 + Vector3(0.0, -girth * 0.7, 0.0),
+			girth * 0.62,
+			girth * 0.2,
+			bark_dark,
+		)
+	# A knot of thick boughs above the trunk, so the crown reads as one oak.
+	for i: int in 3:
+		var around: float = TAU * float(i) / 3.0 + _rng.randf_range(-0.3, 0.3)
+		var out := Vector3(cos(around), 0.0, sin(around))
+		_branch(
+			mesher,
+			trunk_top,
+			trunk_top + out * _rng.randf_range(0.5, 0.9) + Vector3(0.0, 0.55, 0.0),
+			girth * 0.5,
+			girth * 0.18,
+			bark,
+		)
+
+	# Platforms climb in a spiral, each step low enough for a charged jump.
+	var count: int = _rng.randi_range(5, 9)
+	var lowest: float = 0.72
+	var highest: float = 3.4
+	for i: int in count:
+		var step: float = float(i) / float(maxi(count - 1, 1))
+		var platform_height: float = lerpf(lowest, highest, step)
+		var around: float = _rng.randf_range(-0.2, 0.2) + float(i) * 0.62
+		var distance: float = _rng.randf_range(1.05, 1.45)
+		var radius: float = _rng.randf_range(0.7, 1.05)
+		var centre := Vector3(cos(around) * distance, platform_height, sin(around) * distance)
+		var attach := Vector3(
+			cos(around) * girth * 0.7, platform_height - 0.55, sin(around) * girth * 0.7
+		)
+		_branch(mesher, attach, centre, 0.18, 0.09, bark)
+		_platform(mesher, centre, radius, pad if i % 2 == 0 else pad_alt)
+		_platforms.append(centre)
+		_platform_radii.append(radius)
+		for _j: int in _rng.randi_range(1, 3):
+			var rim_angle: float = _rng.randf() * TAU
+			var rim := Vector3(
+				centre.x + cos(rim_angle) * radius * 0.85,
+				centre.y - 0.03,
+				centre.z + sin(rim_angle) * radius * 0.85
+			)
+			var length: float = minf(_rng.randf_range(0.45, 1.4), rim.y - 0.1)
+			if length > 0.15:
+				_liana(mesher, rim, length, vine)
+	# A few bare twigs poking out of the crown.
+	for i: int in _rng.randi_range(4, 7):
+		var around: float = _rng.randf() * TAU
+		var start := Vector3(
+			cos(around) * 0.15, height * _rng.randf_range(0.62, 0.78), sin(around) * 0.15
+		)
+		var tip := (
+			start
+			+ Vector3(
+				cos(around) * _rng.randf_range(0.3, 0.7),
+				_rng.randf_range(0.3, 0.75),
+				sin(around) * _rng.randf_range(0.3, 0.7)
+			)
+		)
+		_branch(mesher, start, tip, girth * 0.16, 0.012, bark_dark)
+
+	_mesh_parts = mesher.get_part_count()
+	mesher.commit(_body)
+	_build_platform_collision()
+
+
+## A platform is a lumpy pancake rather than a disc: a few squashed spheres
+## merged together give the amoeba outline, and one flat collider makes it
+## walkable.
+func _platform(
+	mesher: PropMesher, centre: Vector3, radius: float, material: StandardMaterial3D
+) -> void:
+	var tilt := Vector3(
+		_rng.randf_range(-6.0, 6.0), _rng.randf_range(0.0, 360.0), _rng.randf_range(-6.0, 6.0)
+	)
+	var core := SphereMesh.new()
+	core.radius = radius
+	core.height = radius * 0.36
+	core.radial_segments = 20
+	core.rings = 8
+	mesher.add_at(core, centre, material, tilt, Vector3(1.0, 0.5, 1.0))
+	var blobs: int = _rng.randi_range(3, 5)
+	for i: int in blobs:
+		var around: float = TAU * float(i) / float(blobs) + _rng.randf_range(-0.3, 0.3)
+		var blob := SphereMesh.new()
+		blob.radius = radius * _rng.randf_range(0.42, 0.62)
+		blob.height = blob.radius * 0.42
+		blob.radial_segments = 16
+		blob.rings = 6
+		var offset := Vector3(
+			cos(around) * radius * 0.62, _rng.randf_range(-0.02, 0.04), sin(around) * radius * 0.62
+		)
+		mesher.add_at(blob, centre + offset, material, tilt)
+
+
+func _build_platform_collision() -> void:
+	if _platforms.is_empty():
+		return
+	# The collider lives on the prop root, already at the final size, so the
+	# duke can land on a pad the moment the oak appears.
+	var body := StaticBody3D.new()
+	body.name = "Platforms"
+	body.collision_layer = 1
+	body.collision_mask = 1
+	for i: int in _platforms.size():
+		var holder := CollisionShape3D.new()
+		var shape := CylinderShape3D.new()
+		shape.radius = _platform_radii[i] * 0.8 * _size_scale
+		shape.height = 0.18
+		holder.shape = shape
+		holder.position = _platforms[i] * _size_scale + Vector3(0.0, 0.02, 0.0)
+		body.add_child(holder)
+	add_child(body)
+
+
+# ------------------------------------------------------------------- monsters
 
 
 func _build_monster() -> void:
-	var palette: Array[Color] = [Color("8a6fb5"), Color("6f92a8"), Color("b07a68"), Color("8ba86f")]
-	var skin: Color = palette[monster_level - 1]
-	var body := SphereMesh.new()
-	body.radius = 0.26
-	body.height = 0.44
-	body.radial_segments = 16
-	body.rings = 8
-	var body_node: MeshInstance3D = _add_mesh(body, _material(skin, 0.62, 0.05), Vector3.ZERO)
-	body_node.position = Vector3(0.0, 0.32, 0.0)
-	body_node.scale = Vector3(1.0, 0.92, 0.86)
+	var mesher := PropMesher.new()
+	MonsterBuilder.build(monster_level, _rng, mesher)
+	_mesh_parts = mesher.get_part_count()
+	_monster_name = MonsterBuilder.name_for_level(monster_level)
+	mesher.commit(_body)
 
-	var belly := SphereMesh.new()
-	belly.radius = 0.16
-	belly.height = 0.26
-	belly.radial_segments = 12
-	belly.rings = 6
-	var belly_node: MeshInstance3D = _add_mesh(
-		belly, _material(skin.lightened(0.28), 0.7), Vector3.ZERO
-	)
-	belly_node.position = Vector3(0.0, 0.26, -0.14)
-	belly_node.scale = Vector3(0.95, 0.9, 0.5)
 
-	var eye_white: StandardMaterial3D = _material(Color("f2ece0"), 0.55)
-	var pupil: StandardMaterial3D = _material(Color("241f2b"), 0.4)
-	for side: float in [-1.0, 1.0]:
-		var white := SphereMesh.new()
-		white.radius = 0.062
-		white.height = 0.124
-		white.radial_segments = 10
-		white.rings = 5
-		var white_node: MeshInstance3D = _add_mesh(white, eye_white, Vector3.ZERO)
-		white_node.position = Vector3(0.085 * side, 0.38, -0.2)
-		var dark := SphereMesh.new()
-		dark.radius = 0.03
-		dark.height = 0.06
-		dark.radial_segments = 8
-		dark.rings = 4
-		var dark_node: MeshInstance3D = _add_mesh(dark, pupil, Vector3.ZERO)
-		dark_node.position = Vector3(0.085 * side, 0.38, -0.25)
+# ------------------------------------------------------------------- helpers
 
-	# Antennae, arms and legs: just enough to read as a creature at a glance.
-	var horn := CylinderMesh.new()
-	horn.top_radius = 0.006
-	horn.bottom_radius = 0.016
-	horn.height = 0.17
-	horn.radial_segments = 5
-	horn.rings = 1
-	for side: float in [-1.0, 1.0]:
-		var horn_node: MeshInstance3D = _add_mesh(
-			horn, _material(skin.darkened(0.2), 0.7), Vector3.ZERO
-		)
-		horn_node.position = Vector3(0.11 * side, 0.55, 0.02)
-		horn_node.rotation_degrees = Vector3(0.0, 0.0, -22.0 * side)
 
+## A tapered branch between two local points.
+func _branch(
+	mesher: PropMesher,
+	from: Vector3,
+	to: Vector3,
+	r0: float,
+	r1: float,
+	material: StandardMaterial3D
+) -> void:
+	var length: float = from.distance_to(to)
+	if length < 0.004:
+		return
 	var limb := CylinderMesh.new()
-	limb.top_radius = 0.03
-	limb.bottom_radius = 0.042
-	limb.height = 0.19
-	limb.radial_segments = 6
+	limb.bottom_radius = maxf(r0, 0.004)
+	limb.top_radius = maxf(r1, 0.002)
+	limb.height = length
+	limb.radial_segments = 7
 	limb.rings = 1
-	for side: float in [-1.0, 1.0]:
-		var leg: MeshInstance3D = _add_mesh(limb, _material(skin.darkened(0.12), 0.8), Vector3.ZERO)
-		leg.position = Vector3(0.1 * side, 0.09, 0.0)
-		var arm: MeshInstance3D = _add_mesh(limb, _material(skin.darkened(0.06), 0.8), Vector3.ZERO)
-		arm.position = Vector3(0.24 * side, 0.3, 0.0)
-		arm.rotation_degrees = Vector3(0.0, 0.0, -18.0 * side)
-		arm.scale = Vector3(0.8, 0.7, 0.8)
+	mesher.add_along(limb, (from + to) * 0.5, to - from, material)
 
 
-func _trunk(height: float, top_radius: float, bottom_radius: float) -> void:
-	var trunk := CylinderMesh.new()
-	trunk.top_radius = top_radius
-	trunk.bottom_radius = bottom_radius
-	trunk.height = height
-	trunk.radial_segments = 8
-	trunk.rings = 1
-	var node: MeshInstance3D = _add_mesh(trunk, _material(Color("6b5140"), 0.95), Vector3.ZERO)
-	node.position = Vector3(0.0, height * 0.5, 0.0)
+## A strand of lianas hanging straight down, ending in a dry leaf or two.
+func _liana(
+	mesher: PropMesher, start: Vector3, length: float, material: StandardMaterial3D
+) -> void:
+	_liana_count += 1
+	var points: int = 4
+	var sway := Vector3(_rng.randf_range(-0.09, 0.09), 0.0, _rng.randf_range(-0.09, 0.09))
+	var point: Vector3 = start
+	for i: int in points:
+		var next: Vector3 = (
+			point + Vector3(0.0, -length / float(points), 0.0) + sway * (0.6 + 0.55 * float(i))
+		)
+		var strand := CylinderMesh.new()
+		strand.top_radius = 0.005
+		strand.bottom_radius = 0.009
+		strand.height = point.distance_to(next)
+		strand.radial_segments = 4
+		strand.rings = 1
+		mesher.add_along(strand, (point + next) * 0.5, next - point, material)
+		point = next
+	for i: int in _rng.randi_range(2, 3):
+		var leaf := SphereMesh.new()
+		leaf.radius = _rng.randf_range(0.045, 0.07)
+		leaf.height = leaf.radius * 0.5
+		leaf.radial_segments = 10
+		leaf.rings = 5
+		var at: Vector3 = (
+			start
+			+ Vector3(
+				_rng.randf_range(-0.03, 0.03),
+				-length * _rng.randf_range(0.3, 0.95),
+				_rng.randf_range(-0.03, 0.03)
+			)
+		)
+		(
+			mesher
+			. add_at(
+				leaf,
+				at,
+				material,
+				Vector3(_rng.randf_range(-25.0, 25.0), 0.0, _rng.randf_range(-25.0, 25.0)),
+				Vector3(1.0, 0.6, 0.8),
+			)
+		)
 
 
-func _leaf_cluster(height: float, radius: float, color: Color, segments: int) -> void:
-	var blob := SphereMesh.new()
-	blob.radius = radius
-	blob.height = radius * 1.75
-	blob.radial_segments = segments
-	blob.rings = segments / 2
-	var tint: Color = color.lerp(Color("7fa25f"), _rng.randf() * 0.45)
-	var node: MeshInstance3D = _add_mesh(blob, _material(tint, 0.9), Vector3.ZERO)
-	var around: float = _rng.randf_range(0.0, TAU)
-	var spread: float = _rng.randf_range(0.0, radius * 0.9)
-	node.position = Vector3(cos(around), 0.0, sin(around)) * spread
-	node.position.y = height + _rng.randf_range(-0.08, 0.08)
-
-
-func _add_mesh(
-	mesh: Mesh,
-	material: Material,
-	local: Vector3,
-	rotation_deg: Vector3 = Vector3.ZERO,
-	shadow: bool = true
-) -> MeshInstance3D:
-	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.material_override = material
-	node.position = local
-	node.rotation_degrees = rotation_deg
-	node.cast_shadow = (
-		GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		if shadow
-		else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+func _random_unit() -> Vector3:
+	var value := Vector3(
+		_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0)
 	)
-	_body.add_child(node)
-	return node
+	if value.length_squared() < 0.0001:
+		return Vector3.UP
+	return value.normalized()
 
 
-func _material(color: Color, roughness: float, metallic: float = 0.0) -> StandardMaterial3D:
+## Picks a random shade between pale straw and gloomy brown.
+func _dry_color() -> Color:
+	var scaled: float = _rng.randf() * float(DRY_COLORS.size() - 1)
+	var index: int = mini(int(scaled), DRY_COLORS.size() - 2)
+	return (DRY_COLORS[index] as Color).lerp(DRY_COLORS[index + 1], scaled - float(index))
+
+
+func _dry_material() -> StandardMaterial3D:
+	return _material(_dry_color(), 0.94)
+
+
+func _bark_material(dark: bool = false) -> StandardMaterial3D:
+	var color: Color = BARK_COLORS[_rng.randi_range(0, BARK_COLORS.size() - 1)]
+	if dark:
+		color = color.darkened(0.16)
+	return _material(color, 0.96)
+
+
+func _liana_material() -> StandardMaterial3D:
+	return _material(LIANA_COLORS[_rng.randi_range(0, LIANA_COLORS.size() - 1)], 0.9)
+
+
+func _material(color: Color, roughness: float) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = roughness
-	material.metallic = metallic
 	return material

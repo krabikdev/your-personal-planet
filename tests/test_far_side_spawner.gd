@@ -154,7 +154,7 @@ func test_the_spawn_area_grows_with_the_planet() -> void:
 	)
 
 
-func test_growing_the_planet_keeps_the_props_size_and_spot() -> void:
+func test_growing_the_planet_keeps_the_props_size_and_surface() -> void:
 	var game: Game = _make_game()
 	await wait_process_frames(2)
 
@@ -162,21 +162,21 @@ func test_growing_the_planet_keeps_the_props_size_and_spot() -> void:
 	var planet: Planet = game.get_node("Planet") as Planet
 	var prop: DecorProp = spawner.spawn_one()
 	assert_not_null(prop)
-	var direction: Vector3 = prop.anchor_dir
 	var size_before: Vector3 = prop.scale
 
 	planet.apply_radius(planet.radius + 4.0)
 	await wait_process_frames(1)
 
-	assert_eq(prop.scale, size_before, "props must never be scaled by the growing planet")
+	assert_true(
+		prop.scale.is_equal_approx(size_before),
+		"props must never be scaled by the growing planet",
+	)
 	assert_almost_eq(
 		prop.global_position.distance_to(planet.get_center()),
 		planet.radius,
 		0.05,
-		"the prop should ride the new surface"
+		"the prop should ride the new surface",
 	)
-	var kept: Vector3 = (prop.global_position - planet.get_center()).normalized()
-	assert_gt(kept.dot(direction), 0.999, "the prop should keep its spot on the sphere")
 
 
 func test_the_debug_garden_holds_every_kind() -> void:
@@ -188,7 +188,7 @@ func test_the_debug_garden_holds_every_kind() -> void:
 	await wait_process_frames(2)
 
 	var props: Array[DecorProp] = spawner.get_props()
-	assert_eq(props.size(), 8, "the debug garden should hold one of each kind plus monsters")
+	assert_eq(props.size(), 9, "the debug garden should hold one of each kind plus monsters")
 	var monsters: int = 0
 	var trees: int = 0
 	for prop: DecorProp in props:
@@ -196,5 +196,5 @@ func test_the_debug_garden_holds_every_kind() -> void:
 			monsters += 1
 		if prop.kind == FarSideSpawner.Kind.BIG_TREE:
 			trees += 1
-	assert_eq(monsters, 3, "the garden should show a few monsters")
+	assert_eq(monsters, 4, "the garden should show all four monsters")
 	assert_eq(trees, 1, "the garden should show a big tree")

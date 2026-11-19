@@ -10,4 +10,4 @@ unique_name_in_owner = true
 current = true
 fov = 52.0
 near = 0.05
-far = 900.0
+far = 4000.0

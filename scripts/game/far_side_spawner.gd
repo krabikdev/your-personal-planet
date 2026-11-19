@@ -12,13 +12,20 @@ signal spawned(kind: int)
 enum Kind { GRASS, BUSH, SAPLING, TREE, BIG_TREE, MONSTER }
 
 const REGION_ANGLE: float = 0.9
+## However big the planet gets, arrivals stay inside this many metres of the
+## spawn centre: a cluster spread across a whole huge planet is never found.
+const REGION_MAX_METRES: float = 22.0
+## The walk to the spawn centre is capped too. On a big world the antipode can
+## be kilometres away, which is why nothing seemed to appear any more.
+const SPAWN_DISTANCE_MAX: float = 60.0
 const FIRST_INTERVAL: float = 600.0
 const LAST_INTERVAL: float = 1.0
 const FIRST_SIZE: float = 20.0
 const FULL_SIZE: float = 1000.0
 const MAX_PROPS: int = 120
-const CLUSTER_SPREAD: float = 0.11
-const DEBUG_SPREAD: float = 0.17
+## A group (a monster pair, for instance) stands within this many metres.
+const CLUSTER_SPREAD_METRES: float = 3.0
+const DEBUG_SPREAD_METRES: float = 2.8
 
 var planet: Planet
 var player: Boy
@@ -65,7 +72,22 @@ func get_props() -> Array[DecorProp]:
 func get_region_radius() -> float:
 	if planet == null:
 		return 0.0
-	return planet.radius * sin(REGION_ANGLE)
+	return planet.radius * sin(_region_angle())
+
+
+## How far from the boy the next arrival lands, along the surface. The antipode
+## is used while it is close enough; past that the walk is capped so a huge
+## planet still has something to find.
+func get_spawn_distance() -> float:
+	if planet == null:
+		return 0.0
+	return minf(PI * planet.radius, SPAWN_DISTANCE_MAX)
+
+
+func _region_angle() -> float:
+	if planet == null:
+		return REGION_ANGLE
+	return minf(REGION_ANGLE, REGION_MAX_METRES / maxf(planet.radius, 0.001))
 
 
 ## Seconds between spawns: 600 s at size 20, easing down to 1 s at size 1000.
@@ -137,10 +159,10 @@ func spawn_one() -> DecorProp:
 	var direction: Vector3 = _region_direction()
 	var placed: DecorProp = null
 	for i: int in count:
-		var spot: Vector3 = direction
+		var offset: float = 0.0
 		if count > 1:
-			spot = _tilted(direction, CLUSTER_SPREAD * sqrt(float(i + 1) / float(count)))
-		placed = _place(kind, spot, level)
+			offset = CLUSTER_SPREAD_METRES * sqrt(float(i) / float(count))
+		placed = _place(kind, direction, level, offset)
 	spawned.emit(kind)
 	return placed
 
@@ -164,23 +186,33 @@ func debug_spawn_all() -> void:
 		Kind.MONSTER,
 		Kind.MONSTER,
 		Kind.MONSTER,
+		Kind.MONSTER,
 	]
 	var base: Vector3 = -player.get_up()
 	var middle: float = (float(kinds.size()) - 1.0) * 0.5
+	var reference: Vector3 = Vector3.FORWARD
+	if absf(reference.dot(base)) > 0.9:
+		reference = Vector3.RIGHT
+	var line: Vector3 = (reference - base * reference.dot(base)).normalized()
 	var level: int = 1
 	for i: int in kinds.size():
-		var offset: float = (float(i) - middle) * DEBUG_SPREAD
-		var placed: DecorProp = _place(kinds[i], _tilted(base, offset), level)
+		var offset: Vector3 = line * ((float(i) - middle) * DEBUG_SPREAD_METRES)
+		_place_offset(kinds[i], base, offset, level)
 		if kinds[i] == Kind.MONSTER:
 			level = mini(level + 1, 4)
 
 
-func _place(kind: int, direction: Vector3, level: int = 1) -> DecorProp:
+func _place(kind: int, direction: Vector3, level: int = 1, offset: float = 0.0) -> DecorProp:
+	return _place_offset(kind, direction, _tangent_offset(direction, absf(offset)), level)
+
+
+func _place_offset(kind: int, direction: Vector3, offset: Vector3, level: int = 1) -> DecorProp:
 	var prop := DecorProp.new()
 	prop.name = "Prop%d" % _props.size()
 	add_child(prop)
+	prop.planet = planet
 	prop.setup(kind, randi(), level)
-	prop.anchor_dir = direction.normalized()
+	prop.set_spawn_spot(direction, offset)
 	_settle(prop)
 	if kind == Kind.MONSTER:
 		prop.configure_monster(planet, player, level)
@@ -211,19 +243,41 @@ func _settle(prop: DecorProp) -> void:
 func _on_radius_changed(new_radius: float) -> void:
 	if planet == null:
 		return
-	# Props keep their size and their spot on the sphere; only the ground under
-	# them rises, so they stay on the surface of the growing planet.
+	# Props keep their size; the ground under them rises. Static plants also
+	# rebuild their spot from the metric offset they were born with, so a
+	# cluster stays a cluster instead of stretching across a bigger planet.
 	for prop: DecorProp in _props:
-		if is_instance_valid(prop):
-			prop.global_position = planet.get_center() + prop.anchor_dir * new_radius
+		if not is_instance_valid(prop):
+			continue
+		if not prop.is_monster():
+			prop.refresh_anchor()
+		prop.global_position = planet.get_center() + prop.anchor_dir * new_radius
 	# A bigger planet also means a faster cadence: an already pending arrival
 	# should not keep waiting out the old, slower timer.
 	_timer = minf(_timer, get_interval())
 
 
 func _region_direction() -> Vector3:
-	var anti: Vector3 = -player.get_up()
-	return _tilted(anti, REGION_ANGLE * sqrt(randf()))
+	var up: Vector3 = player.get_up()
+	var angle: float = clampf(SPAWN_DISTANCE_MAX / maxf(planet.radius, 0.001), 0.0, PI)
+	var centre: Vector3 = _tilted(up, angle)
+	var spread: float = _region_angle()
+	if spread <= 0.0:
+		return centre
+	return _tilted(centre, spread * sqrt(randf()))
+
+
+## A point `metres` away from `base` across the surface, at a random bearing.
+func _tangent_offset(base: Vector3, metres: float) -> Vector3:
+	if metres <= 0.0:
+		return Vector3.ZERO
+	var reference: Vector3 = Vector3.FORWARD
+	if absf(reference.dot(base)) > 0.9:
+		reference = Vector3.RIGHT
+	var first: Vector3 = (reference - base * reference.dot(base)).normalized()
+	var second: Vector3 = base.cross(first).normalized()
+	var bearing: float = randf() * TAU
+	return (first * cos(bearing) + second * sin(bearing)) * metres
 
 
 ## A direction `angle` radians away from `base`, at a random bearing.
