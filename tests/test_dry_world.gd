@@ -26,6 +26,63 @@ func test_no_plant_shade_is_green() -> void:
 			)
 
 
+func test_every_plant_sits_on_a_stain_of_turned_soil() -> void:
+	var radii: Array[float] = []
+	for kind: int in [
+		DecorProp.Kind.GRASS,
+		DecorProp.Kind.BUSH,
+		DecorProp.Kind.SAPLING,
+		DecorProp.Kind.TREE,
+		DecorProp.Kind.BIG_TREE,
+	]:
+		var prop: DecorProp = _make_prop(kind, 500 + kind)
+		var radius: float = prop.get_soil_radius()
+		assert_gt(radius, 0.1, "kind %d needs a stain under it" % kind)
+		assert_between(prop.get_soil_lobe_count(), 4, 6, "the stain is a few lobes, not a disc")
+
+		var color: Color = prop.get_soil_color()
+		assert_gt(color.r, color.g, "the soil is orange, not green")
+		assert_gt(color.g, color.b)
+		assert_lt(color.v, 0.8, "and dark")
+		radii.append(radius)
+
+	for i: int in range(1, radii.size()):
+		assert_gt(
+			radii[i],
+			radii[i - 1],
+			"the bigger the plant, the bigger the patch it stands on (step %d)" % i,
+		)
+
+
+func test_the_soil_patch_changes_shape_from_prop_to_prop() -> void:
+	var shapes: Dictionary[int, bool] = {}
+	for i: int in 6:
+		var prop: DecorProp = _make_prop(DecorProp.Kind.BUSH, 900 + i)
+		shapes[prop.get_soil_lobe_count()] = true
+	assert_gt(shapes.size(), 1, "the stains are not all stamped from one shape")
+
+
+func test_monsters_do_not_tear_up_the_ground() -> void:
+	var monster: DecorProp = _make_prop(DecorProp.Kind.MONSTER, 77, 2)
+	assert_eq(monster.get_soil_radius(), 0.0, "a monster is not a plant")
+	assert_eq(monster.get_soil_lobe_count(), 0)
+
+
+func test_the_soil_patch_follows_the_curve_of_a_small_planet() -> void:
+	var planet := Planet.new()
+	planet.radius = PlanetProfile.BASE_RADIUS
+	var curved: DecorProp = DecorProp.new()
+	add_child_autofree(curved)
+	curved.planet = planet
+	curved.setup(DecorProp.Kind.BIG_TREE, 321)
+	assert_gt(
+		curved.get_soil_sag(), 0.02, "the outer lobes dip with the ground instead of hovering"
+	)
+
+	var flat: DecorProp = _make_prop(DecorProp.Kind.BIG_TREE, 321)
+	assert_almost_eq(flat.get_soil_sag(), 0.0, 0.0001, "with no planet there is nothing to curve")
+
+
 func test_decorations_roll_a_size_between_90_and_120_percent() -> void:
 	var smallest: float = 2.0
 	var largest: float = 0.0
