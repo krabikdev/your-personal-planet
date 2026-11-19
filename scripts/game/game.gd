@@ -467,7 +467,7 @@ func _on_debris_caught(kind: int, size_factor: float, shape_seed: int) -> void:
 	_model.add(stone)
 	_hud.set_inventory_count(_model.size())
 	_hud.show_toast(
-		"%s у сумці · %.1f ×  (I — відкрити)" % [stone.display_name(), size_factor],
+		"%s у сумці · %.1f ×  (E — відкрити)" % [stone.display_name(), size_factor],
 		stone.accent_color(),
 		3.4
 	)
