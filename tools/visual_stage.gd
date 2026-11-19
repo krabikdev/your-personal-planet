@@ -392,6 +392,46 @@ func _setup() -> void:
 					]
 				)
 			)
+		"garden":
+			var g_planet: Planet = game.get_node("Planet") as Planet
+			var g_player: Boy = game.get_node("Player") as Boy
+			var g_spawner: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+			var g_rig: CameraRig = game.get_node("CameraRig") as CameraRig
+			g_rig.base_lift = 1.7
+			g_rig.base_distance = 4.4
+			await get_tree().create_timer(0.4).timeout
+			var g_up: Vector3 = g_player.get_up()
+			var g_forward: Vector3 = -g_player.global_transform.basis.z
+			var g_spot: Vector3 = (
+				g_planet.get_center() + (g_up + g_forward * 0.35).normalized() * g_planet.radius
+			)
+			var g_plant: PumpkinPlant = game.get_garden().pour(g_spot, 2.5)
+			var g_monster: DecorProp = g_spawner.debug_spawn_monster(Vector3.UP, 1)
+			g_monster.global_position = g_plant.get_head_position() + g_forward * 11.0
+			await get_tree().create_timer(0.8).timeout
+			print(
+				(
+					"GARDEN grounded=%s crushed=%s level=%d"
+					% [
+						g_plant.is_head_on_the_ground(),
+						g_plant.is_stalk_crushed(),
+						g_plant.get_level(),
+					]
+				)
+			)
+			g_plant.water(PumpkinPlant.LEVEL_WATER)
+			await get_tree().create_timer(1.6).timeout
+			print(
+				(
+					"GARDEN level=%d radius=%.1f interval=%.1f dead=%s"
+					% [
+						g_plant.get_level(),
+						g_plant.get_attack_radius(),
+						g_plant.get_attack_interval(),
+						g_monster.is_queued_for_deletion(),
+					]
+				)
+			)
 		"keyjump":
 			await get_tree().create_timer(0.5).timeout
 			var press := InputEventKey.new()

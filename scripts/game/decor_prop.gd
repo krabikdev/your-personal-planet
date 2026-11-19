@@ -253,6 +253,20 @@ static func contact_damage_for_level(level: int) -> float:
 	return CONTACT_DAMAGE_STEP * float(clampi(level, 1, 4))
 
 
+## Every monster leaves with a voice of its own, so the duke can hear what the
+## garden just dissolved.
+static func death_sound_for_level(level: int) -> String:
+	match clampi(level, 1, 4):
+		1:
+			return "death_caterpillar"
+		2:
+			return "death_hydralisk"
+		3:
+			return "death_ragnos"
+		_:
+			return "death_zodd"
+
+
 ## Hands the monster the world it lives in. The spawner calls this after the
 ## prop has been settled on the surface.
 func configure_monster(p_planet: Planet, p_boy: Boy, p_level: int) -> void:
@@ -263,9 +277,13 @@ func configure_monster(p_planet: Planet, p_boy: Boy, p_level: int) -> void:
 	_enter_wander()
 
 
-## One blob of acid is enough: the monster dissolves and leaves the garden.
+## One blob of acid is enough: the monster dissolves with its own dying sound
+## and leaves the garden.
 func hit_by_acid() -> void:
 	acid_hit.emit()
+	AudioDirector.play_sfx_3d(
+		death_sound_for_level(monster_level), global_position, get_parent(), -2.0, 6.0
+	)
 	queue_free()
 
 
