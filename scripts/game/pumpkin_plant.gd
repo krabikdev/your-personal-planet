@@ -26,6 +26,9 @@ const FALL_SECONDS: float = 0.45
 const ATTACK_RADIUS: float = 10.0
 const ATTACK_INTERVAL: float = 2.0
 const HEAD_RADIUS: float = 0.21
+## A blob burns this much off a monster; the upgraded head hits harder.
+const ATTACK_DAMAGE: float = 10.0
+const LEVEL_TWO_DAMAGE: float = 15.0
 ## Water poured on a finished head feeds a bar the player never sees. Five units
 ## (five seconds of pouring, or the same amount spread over many visits) push
 ## the head to level two.
@@ -123,6 +126,12 @@ func get_spit_speed() -> float:
 	if _level >= 2:
 		return AcidBlob.SPEED * LEVEL_TWO_SPEED
 	return AcidBlob.SPEED
+
+
+func get_attack_damage() -> float:
+	if _level >= 2:
+		return LEVEL_TWO_DAMAGE
+	return ATTACK_DAMAGE
 
 
 func get_head_position() -> Vector3:
@@ -397,7 +406,7 @@ func _try_attack() -> AcidBlob:
 	var blob := AcidBlob.new()
 	blob.name = "AcidBlob"
 	parent.add_child(blob)
-	blob.setup(origin, nearest, get_spit_speed())
+	blob.setup(origin, nearest, get_spit_speed(), get_attack_damage(), planet)
 	return blob
 
 

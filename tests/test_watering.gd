@@ -241,6 +241,7 @@ func test_watering_a_fallen_head_fills_an_invisible_bar_and_levels_it_up() -> vo
 	assert_true(plant.is_mature())
 	assert_eq(plant.get_level(), 1, "a fresh head starts at level one")
 	assert_almost_eq(plant.get_attack_radius(), 10.0, 0.001)
+	assert_almost_eq(plant.get_attack_damage(), 10.0, 0.001, "and chews ten damage a bite")
 	var small: float = plant.get_head_radius()
 
 	var levels: Array[int] = []
@@ -261,6 +262,7 @@ func test_watering_a_fallen_head_fills_an_invisible_bar_and_levels_it_up() -> vo
 	assert_eq(levels[0] if levels.size() > 0 else 0, 2)
 	assert_almost_eq(plant.get_attack_radius(), 15.0, 0.001, "it notices half again as far")
 	assert_almost_eq(plant.get_attack_interval(), 1.0, 0.001, "and spits twice as often")
+	assert_almost_eq(plant.get_attack_damage(), 15.0, 0.001, "its bites hurt fifteen now")
 	assert_almost_eq(
 		plant.get_spit_speed(), AcidBlob.SPEED * 1.5, 0.001, "the blob flies half again as fast"
 	)
@@ -283,12 +285,13 @@ func test_a_level_two_head_sees_monsters_outside_the_old_ten_metres() -> void:
 	plant.water(PumpkinPlant.LEVEL_WATER)
 	var blob: AcidBlob = plant.debug_attack_now()
 	assert_not_null(blob, "a level two head sees fifteen metres")
+	assert_almost_eq(blob.get_damage(), 15.0, 0.001, "the upgraded head spits fifteen")
 	blob.debug_reach()
-	assert_true(monster.is_queued_for_deletion(), "and still dissolves it in one hit")
+	assert_almost_eq(monster.get_health(), 5.0, 0.001, "and the hit lands from twelve metres away")
 
 
 func test_the_attack_sounds_are_shipped() -> void:
-	for key: String in ["spit", "acid_hit"]:
+	for key: String in ["spit", "acid_hit", "power_up"]:
 		assert_true(AudioDirector.SFX_PATHS.has(key), "%s should be registered" % key)
 		var stream: AudioStream = load(AudioDirector.SFX_PATHS[key]) as AudioStream
 		assert_not_null(stream, "%s should load" % key)
@@ -376,8 +379,51 @@ func test_a_mature_head_spits_acid_at_a_monster_it_can_see() -> void:
 
 	var blob: AcidBlob = plant.debug_attack_now()
 	assert_not_null(blob, "a monster three metres away is inside the ten-metre gaze")
+	assert_almost_eq(blob.get_damage(), 10.0, 0.001, "a fresh head spits ten damage")
 	blob.debug_reach()
-	assert_true(monster.is_queued_for_deletion(), "the acid dissolves the monster")
+	assert_false(monster.is_queued_for_deletion(), "twenty health survives one blob")
+	assert_almost_eq(monster.get_health(), 10.0, 0.001, "the caterpillar is half burnt")
+
+	var second: AcidBlob = plant.debug_attack_now()
+	assert_not_null(second, "the monster is still there to be spat at")
+	second.debug_reach()
+	assert_true(monster.is_queued_for_deletion(), "the second blob dissolves the monster")
+
+
+func test_the_acid_skims_the_ground_at_a_constant_height() -> void:
+	var game: Game = _make_game()
+	await wait_physics_frames(2)
+	var planet: Planet = game.get_node("Planet") as Planet
+	var garden: Garden = game.get_garden()
+	var spawner: FarSideSpawner = game.get_node("FarSideSpawner") as FarSideSpawner
+	var spot: Vector3 = planet.get_center() + Vector3.UP * planet.radius
+	var plant: PumpkinPlant = garden.pour(spot, 2.5)
+	var monster: DecorProp = spawner.debug_spawn_monster(Vector3.UP, 1)
+	monster.global_position = plant.get_head_position() + Vector3(6.0, 0.0, 0.0)
+
+	assert_almost_eq(
+		AcidBlob.SPEED, 4.5, 0.001, "the blob crawls along at four and a half a second"
+	)
+	var blob: AcidBlob = plant.debug_attack_now()
+	assert_not_null(blob)
+	var before: float = blob.global_position.distance_to(monster.global_position)
+	for _i: int in 8:
+		assert_almost_eq(
+			blob.get_altitude(),
+			AcidBlob.ARC_HEIGHT,
+			0.02,
+			"the blob keeps the same height over the ground the whole way",
+		)
+		blob.debug_advance(0.1)
+	assert_lt(
+		blob.global_position.distance_to(monster.global_position), before, "it still closes in"
+	)
+	assert_almost_eq(blob.get_altitude(), AcidBlob.ARC_HEIGHT, 0.02, "and arrives still skimming")
+
+	var steps: int = 0
+	while blob.debug_advance(0.1) and steps < 200:
+		steps += 1
+	assert_almost_eq(monster.get_health(), 10.0, 0.001, "the low arc lands on the monster")
 
 
 func test_a_head_ignores_monsters_outside_ten_metres() -> void:

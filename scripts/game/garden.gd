@@ -73,6 +73,7 @@ func _sprout(spot: Vector3) -> PumpkinPlant:
 	add_child(plant)
 	plant.setup(planet, dir)
 	plant.matured.connect(_on_plant_matured.bind(plant), CONNECT_ONE_SHOT)
+	plant.leveled_up.connect(_on_plant_leveled_up.bind(plant))
 	_plants.append(plant)
 	AudioDirector.play_sfx_3d("sprout", plant.global_position, self, SPROUT_DB, 4.0)
 	sprouted.emit(plant)
@@ -84,6 +85,13 @@ func _on_plant_matured(plant: PumpkinPlant) -> void:
 	if not is_instance_valid(plant):
 		return
 	AudioDirector.play_sfx_3d("mature", plant.get_head_position(), self, MATURE_DB, 5.0)
+
+
+## The head has drunk enough water for level two: a bright flourish marks it.
+func _on_plant_leveled_up(_level: int, plant: PumpkinPlant) -> void:
+	if not is_instance_valid(plant):
+		return
+	AudioDirector.play_sfx_3d("power_up", plant.get_head_position(), self, -1.0, 6.0)
 
 
 func _on_radius_changed(new_radius: float) -> void:
