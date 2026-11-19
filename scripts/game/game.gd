@@ -26,6 +26,8 @@ var _rope: RopeAnchor
 var _garden: Garden
 var _pour_streak: float = 0.0
 var _pour_spot: Vector3 = Vector3.ZERO
+var _sky_view: bool = false
+var _sky_hint_shown: bool = false
 var _debug_panel: DebugPanel
 var _frost_material: ShaderMaterial
 var _was_safe_before_growth: bool = false
@@ -117,7 +119,7 @@ func _process(delta: float) -> void:
 	if _camera_rig.get_camera() == null:
 		return
 	_headlight.global_transform.basis = _camera_rig.get_camera().global_transform.basis
-	_camera_rig.set_sky_view(_state == State.PLAYING and Input.is_action_pressed("sky_view"))
+	_camera_rig.set_sky_view(_state == State.PLAYING and _sky_view)
 
 
 ## Holding the left button on the ground pours the can into the patch in front
@@ -170,6 +172,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			_player.swing_net()
 		get_viewport().set_input_as_handled()
 		return
+	# Q is a switch, not a hold: it lifts the camera to the duke's head and the
+	# next press drops it back behind him.
+	if event.is_action_pressed("sky_view") and _state == State.PLAYING:
+		toggle_sky_view()
+		if _sky_view and not _sky_hint_shown:
+			_sky_hint_shown = true
+			_hud.show_toast("Q ще раз — повернути звичайну камеру.", Color("cdb38d"), 2.4)
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("stake") and _state == State.PLAYING:
 		if not _rope.is_planted():
 			_player.plant_stake()
@@ -194,6 +205,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause") and _state == State.PLAYING:
 		_open_pause()
 		get_viewport().set_input_as_handled()
+
+
+## Q is a switch: one press lifts the camera to the duke's head, the next one
+## brings the ordinary chase camera back.
+func toggle_sky_view() -> void:
+	_sky_view = not _sky_view
+
+
+func is_sky_view() -> bool:
+	return _sky_view
 
 
 func _setup_environment() -> void:
@@ -302,6 +323,7 @@ func _toggle_inventory() -> void:
 		_hud.show_toast("Сумку можна відкрити лише на землі.", Color("d9cbb8"), 2.0)
 		return
 	_state = State.INVENTORY
+	_sky_view = false
 	_player.set_watering(false)
 	_inventory_ui.open(_model.items, _planet.radius, _model.water)
 	_hud.visible = false
@@ -363,6 +385,7 @@ func _on_skeleton_item_picked(kind: int) -> void:
 
 func _start_apply(stone: StoneItem) -> void:
 	_state = State.APPLYING
+	_sky_view = false
 	_stones_used += 1
 	_was_safe_before_growth = _planet.is_jump_safe()
 	_hud.set_inventory_count(_model.size())
@@ -439,6 +462,7 @@ func _on_froze() -> void:
 	if _state == State.DEAD:
 		return
 	_state = State.DEAD
+	_sky_view = false
 	_hud.set_dead()
 	_hud.visible = false
 	AudioDirector.play_sfx("freeze", 0.0, 1.5)
@@ -478,6 +502,7 @@ func _open_pause() -> void:
 		return
 	_player.set_watering(false)
 	_state = State.PAUSED
+	_sky_view = false
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_pause_menu.open()

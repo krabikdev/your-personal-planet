@@ -334,7 +334,7 @@ func _setup() -> void:
 			far_rig.base_distance = 8.5
 			await get_tree().create_timer(0.9).timeout
 		"sky":
-			Input.action_press("sky_view")
+			game.toggle_sky_view()
 			await get_tree().create_timer(1.0).timeout
 		"growth":
 			var growth_planet: Planet = game.get_node("Planet") as Planet

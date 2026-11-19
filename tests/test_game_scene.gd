@@ -10,6 +10,15 @@ func _frost_progress(game: Game) -> float:
 	return float(material.get_shader_parameter("progress"))
 
 
+## Feeds the Q action in through the same path a real key press takes, because
+## the sky camera is a switch now rather than a held button.
+func _press_sky(game: Game) -> void:
+	var event := InputEventAction.new()
+	event.action = &"sky_view"
+	event.pressed = true
+	game._unhandled_input(event)
+
+
 func test_game_scene_instantiates_cleanly() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	assert_not_null(scene, "game.tscn should load")
@@ -474,7 +483,7 @@ func test_the_hud_names_e_as_the_bag_key() -> void:
 	assert_false(controls.text.contains("I  сумка"), "the hint follows the new key")
 
 
-func test_holding_q_looks_along_the_duke_gaze_from_his_head() -> void:
+func test_pressing_q_looks_along_the_duke_gaze_from_his_head() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game
 	add_child_autofree(game)
@@ -482,14 +491,13 @@ func test_holding_q_looks_along_the_duke_gaze_from_his_head() -> void:
 
 	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
 	var player: Boy = game.get_node("Player") as Boy
-	Input.action_press("sky_view")
+	_press_sky(game)
 	await get_tree().create_timer(0.3).timeout
 
 	var camera: Camera3D = rig.get_camera()
 	var look: Vector3 = -camera.global_transform.basis.z
 	var up: Vector3 = player.get_up()
 	var heading: Vector3 = rig.get_tangent_forward(up)
-	Input.action_release("sky_view")
 	assert_lt(
 		absf(look.dot(up)), 0.3, "the view should start level with the horizon, not at the zenith"
 	)
@@ -502,6 +510,74 @@ func test_holding_q_looks_along_the_duke_gaze_from_his_head() -> void:
 	assert_false(player.is_net_active(), "looking up should not swing the net")
 
 
+func test_q_switches_the_sky_camera_on_and_off() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_physics_frames(3)
+	await wait_process_frames(2)
+
+	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
+	var player: Boy = game.get_node("Player") as Boy
+	var camera: Camera3D = rig.get_camera()
+	assert_false(game.is_sky_view(), "the chase camera is the default")
+	assert_false(rig.is_sky_view())
+
+	_press_sky(game)
+	await wait_process_frames(20)
+	assert_true(game.is_sky_view(), "one press of Q lifts the camera")
+	assert_true(rig.is_sky_view())
+	assert_lt(
+		camera.global_position.distance_to(player.global_position),
+		2.6,
+		"the camera should sit right at the duke's head",
+	)
+
+	_press_sky(game)
+	await wait_process_frames(30)
+	assert_false(game.is_sky_view(), "the second press drops it again")
+	assert_false(rig.is_sky_view(), "no key is being held, so the switch is what matters")
+	assert_gt(
+		camera.global_position.distance_to(player.global_position),
+		2.6,
+		"the ordinary chase camera is back behind the duke",
+	)
+
+
+func test_in_the_sky_view_the_mouse_steers_and_the_duke_walks_that_way() -> void:
+	var scene: PackedScene = load(GAME_PATH) as PackedScene
+	var game: Game = scene.instantiate() as Game
+	add_child_autofree(game)
+	await wait_physics_frames(3)
+	await wait_process_frames(2)
+
+	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
+	var player: Boy = game.get_node("Player") as Boy
+	_press_sky(game)
+	await wait_process_frames(6)
+	await wait_physics_frames(2)
+	var up: Vector3 = player.get_up()
+	var before: Vector3 = rig.get_tangent_forward(up)
+
+	var turn := InputEventMouseMotion.new()
+	turn.relative = Vector2(-600.0, 0.0)
+	rig._unhandled_input(turn)
+	var after: Vector3 = rig.get_tangent_forward(up)
+	assert_gt(before.angle_to(after), 1.2, "the mouse still turns the view sideways")
+
+	var start: Vector3 = player.global_position
+	Input.action_press("move_forward")
+	await wait_physics_frames(30)
+	Input.action_release("move_forward")
+	await wait_physics_frames(2)
+
+	var moved: Vector3 = player.global_position - start
+	moved -= up * moved.dot(up)
+	assert_gt(moved.length(), 0.3, "the duke walks while the sky camera is up")
+	assert_gt(moved.normalized().dot(after), 0.6, "he goes where the sky camera looks")
+	assert_lt(moved.normalized().dot(before), 0.4, "not along the old heading")
+
+
 func test_the_sky_sweep_never_flips_the_world() -> void:
 	var scene: PackedScene = load(GAME_PATH) as PackedScene
 	var game: Game = scene.instantiate() as Game
@@ -510,7 +586,7 @@ func test_the_sky_sweep_never_flips_the_world() -> void:
 
 	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
 	var camera: Camera3D = rig.get_camera()
-	Input.action_press("sky_view")
+	_press_sky(game)
 	await wait_process_frames(20)
 
 	var previous: Vector3 = camera.global_transform.basis.y
@@ -533,7 +609,6 @@ func test_the_sky_sweep_never_flips_the_world() -> void:
 		assert_gt(current.dot(previous), 0.7, "and down to the duke's feet without a snap")
 		previous = current
 	assert_almost_eq(rig.get_sky_pitch(), -PI * 0.5, 0.02, "the mouse still reaches the ground")
-	Input.action_release("sky_view")
 
 
 func test_the_sky_camera_follows_the_mouse_in_every_direction() -> void:
@@ -543,7 +618,7 @@ func test_the_sky_camera_follows_the_mouse_in_every_direction() -> void:
 	await wait_process_frames(1)
 
 	var rig: CameraRig = game.get_node("CameraRig") as CameraRig
-	Input.action_press("sky_view")
+	_press_sky(game)
 	await get_tree().create_timer(0.25).timeout
 	var start_pitch: float = rig.get_sky_pitch()
 	var start_yaw: float = rig.get_sky_yaw()
@@ -558,9 +633,9 @@ func test_the_sky_camera_follows_the_mouse_in_every_direction() -> void:
 	rig._unhandled_input(downward)
 	assert_lt(rig.get_sky_pitch(), start_pitch - 0.1, "moving the mouse down tilts the view down")
 
-	Input.action_release("sky_view")
+	_press_sky(game)
 	await get_tree().create_timer(0.2).timeout
-	assert_false(rig.is_sky_view(), "releasing Q should return to the chase camera")
+	assert_false(rig.is_sky_view(), "pressing Q again should return to the chase camera")
 
 
 func test_interact_is_mapped_to_the_left_mouse_button() -> void:

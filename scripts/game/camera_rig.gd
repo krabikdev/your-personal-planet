@@ -70,7 +70,7 @@ func orbit_by(pixels: float) -> void:
 	_view_yaw = wrapf(_view_yaw - pixels * mouse_sensitivity, -PI, PI)
 
 
-## Holding Q lifts the camera to the duke's head and aims it along his gaze, so
+## Pressing Q lifts the camera to the duke's head and aims it along his gaze, so
 ## the sky sits right above the horizon. The mouse then looks all the way up and
 ## all the way down without the view ever snapping over at a pole.
 func set_sky_view(value: bool) -> void:
@@ -80,6 +80,10 @@ func set_sky_view(value: bool) -> void:
 	if value:
 		_sky_yaw = _view_yaw
 		_sky_pitch = clampf(sky_start_pitch, -PI * 0.5, PI * 0.5)
+	else:
+		# However the player turned while looking at the sky, the chase camera
+		# comes back facing the same way instead of snapping to the old heading.
+		_view_yaw = _sky_yaw
 
 
 func is_sky_view() -> bool:
@@ -102,11 +106,13 @@ func get_view_yaw() -> float:
 	return _view_yaw
 
 
+## The direction "forward" means right now. In the sky view the mouse steers a
+## separate yaw, so the duke walks wherever the camera is looking.
 func get_tangent_forward(up: Vector3) -> Vector3:
 	var forward: Vector3 = _heading - up * _heading.dot(up)
 	if forward.length_squared() < 0.0001:
 		forward = up.cross(Vector3.RIGHT)
-	return forward.normalized().rotated(up, _view_yaw)
+	return forward.normalized().rotated(up, _sky_yaw if _sky else _view_yaw)
 
 
 func get_tangent_right(up: Vector3) -> Vector3:
